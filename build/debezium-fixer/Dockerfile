@@ -5,6 +5,18 @@ ARG container_user_group=mosip
 ARG container_user_uid=1001
 ARG container_user_gid=1001
 
+# NIRA Added missing ARG instructions
+ARG SOURCE
+ARG COMMIT_HASH
+ARG COMMIT_ID
+ARG BUILD_TIME
+
+# NIRA Added the required LABEL instructions
+LABEL source=${SOURCE}
+LABEL commit_hash=${COMMIT_HASH}
+LABEL commit_id=${COMMIT_ID}
+LABEL build_time=${BUILD_TIME}
+
 RUN apk add curl bash vim jq \
 && addgroup -g ${container_user_gid} ${container_user_group} \
 && adduser -u ${container_user_uid} -G ${container_user_group} -s /bin/sh -D ${container_user}
