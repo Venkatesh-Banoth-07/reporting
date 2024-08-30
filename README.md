@@ -57,4 +57,3 @@ Set to true in only testing or development environments.Dropping the slot allows
 
 ## License
 This project is licensed under the terms of [Mozilla Public License 2.0](LICENSE).
-
