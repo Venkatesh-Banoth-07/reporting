@@ -20,6 +20,7 @@ on:
       - develop
       - MOSIP*
       - release*
+      - tf_nira_dev
 
 jobs:
   build-maven-kafka-connect-transforms:
