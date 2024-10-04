@@ -1,147 +1,151 @@
-name: Maven Package upon a push
+name: Create Dockers on Push
 
 on:
-  release:
-    types: [published]
-  pull_request:
-    types: [opened, reopened, synchronize]
   workflow_dispatch:
-    inputs:
-      message:
-        description: 'Message for manually triggering'
-        required: false
-        default: 'Triggered for Updates'
-        type: string
   push:
     branches:
       - '!release-branch'
+      - release-1*
       - master
       - 1.*
       - develop
-      - MOSIP*
-      - release*
+      - MOS-3162
       - tf_nira_dev
-
+    paths:
+      - 'build/**'
 jobs:
-  build-maven-kafka-connect-transforms:
-    uses: mosip/kattu/.github/workflows/maven-build.yml@master
-    with:
-      SERVICE_LOCATION: build/es-kafka-connecter/kafka_connect_transforms
-      BUILD_ARTIFACT: kafka-connect
-    secrets:
-      OSSRH_USER: ${{ secrets.OSSRH_USER }}
-      OSSRH_SECRET: ${{ secrets.OSSRH_SECRET }}
-      OSSRH_TOKEN: ${{ secrets.OSSRH_TOKEN }}
-      GPG_SECRET: ${{ secrets.GPG_SECRET }}
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
-
-  ## Recreate zips to provide support for docker unzip operation
-  recreate-zips:
-    needs: build-maven-kafka-connect-transforms
+  kafka_connect_transforms:
     runs-on: ubuntu-latest
-    env:
-      BUILD_ARTIFACT: kafka-connect
-      NEW_BUILD_ARTIFACT: es-kafka-connect
-      SERVICE_LOCATION: build/es-kafka-connecter/kafka_connect_transforms
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v3
-        if: ${{ ( env.BUILD_ARTIFACT != 'false' ) }}
-        with:
-          name: ${{ env.BUILD_ARTIFACT }}
-          path: ${{ env.SERVICE_LOCATION }}
-      - name: recreate zip
-        run: |
-          echo "unzip command under target directory"
-          
-          unzip -uj "${{ env.SERVICE_LOCATION }}/${{ env.BUILD_ARTIFACT }}.zip" "*/target/*"  -d "${{ env.SERVICE_LOCATION }}/target/"
-          
-          cd ${{ env.SERVICE_LOCATION }}/target/
-        
-          wget https://repo.maven.apache.org/maven2/io/debezium/debezium-core/1.7.0.Final/debezium-core-1.7.0.Final.jar
-          
-          cd -
-          echo "find command"
-          find ./ -path '*/target/*' -name '*.jar'  -type f -exec zip ${{ env.NEW_BUILD_ARTIFACT }}.zip {} +
+    - uses: actions/checkout@v2
+    - name: Set up JDK 11
+      uses: actions/setup-java@v1
+      with:
+        ref: ${{ github.ref }}
+        java-version: 11
 
-      - name: Upload the springboot jars
-        if: ${{ !contains(github.ref, 'master') || !contains(github.ref, 'main') }}
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.NEW_BUILD_ARTIFACT }}
-          path: ${{ env.NEW_BUILD_ARTIFACT }}.zip
+    - name: Setup branch and env
+      run: |
+          # Strip git ref prefix from version
+          echo "BRANCH_NAME=$(echo ${{ github.ref }} | sed -e 's,.*/\(.*\),\1,')" >> $GITHUB_ENV
 
-  build-dockers-kafka-connect-transforms:
-    needs: recreate-zips
-    strategy:
-      matrix:
-        include:
-          - SERVICE_LOCATION: 'build/es-kafka-connecter/kafka_connect_transforms'
-            SERVICE_NAME: 'es-kafka-connect'
-            BUILD_ARTIFACT: 'es-kafka-connect'
-      fail-fast: false
-    name: ${{ matrix.SERVICE_NAME }}
-    uses: mosip/kattu/.github/workflows/docker-build.yml@master
-    with:
-      SERVICE_LOCATION: ${{ matrix.SERVICE_LOCATION }}
-      SERVICE_NAME: ${{ matrix.SERVICE_NAME }}
-      BUILD_ARTIFACT: ${{ matrix.BUILD_ARTIFACT }}
-    secrets:
-      DEV_NAMESPACE_DOCKER_HUB: ${{ secrets.DEV_NAMESPACE_DOCKER_HUB }}
-      ACTOR_DOCKER_HUB: ${{ secrets.ACTOR_DOCKER_HUB }}
-      RELEASE_DOCKER_HUB: ${{ secrets.RELEASE_DOCKER_HUB }}
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+    - uses: actions/cache@v1
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-${{ env.BRANCH_NAME }}
 
-  build-dockers-debezium-fixer:
-    strategy:
-      matrix:
-        include:
-          - SERVICE_LOCATION: 'build/debezium-fixer'
-            SERVICE_NAME: 'debezium-fixer'
-      fail-fast: false
-    name: ${{ matrix.SERVICE_NAME }}
-    uses: mosip/kattu/.github/workflows/docker-build.yml@master
-    with:
-      SERVICE_LOCATION: ${{ matrix.SERVICE_LOCATION }}
-      SERVICE_NAME: ${{ matrix.SERVICE_NAME }}
-    secrets:
-      DEV_NAMESPACE_DOCKER_HUB: ${{ secrets.DEV_NAMESPACE_DOCKER_HUB }}
-      ACTOR_DOCKER_HUB: ${{ secrets.ACTOR_DOCKER_HUB }}
-      RELEASE_DOCKER_HUB: ${{ secrets.RELEASE_DOCKER_HUB }}
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+    - name: Build with Maven
+      run: |
+        cd build/es-kafka-connecter
+        cd kafka_connect_transforms ; mvn -B clean package -DskipTests ; cd ..
+        mkdir jars; cd jars
+        cp ../kafka_connect_transforms/target/kafka_connect_transforms*.jar .
+        wget https://repo.maven.apache.org/maven2/io/debezium/debezium-core/1.7.0.Final/debezium-core-1.7.0.Final.jar
 
-  build-dockers-debezium-init:
-    strategy:
-      matrix:
-        include:
-          - SERVICE_LOCATION: 'build/reporting-init/debezium-init'
-            SERVICE_NAME: 'debezium-init'
-      fail-fast: false
-    name: ${{ matrix.SERVICE_NAME }}
-    uses: mosip/kattu/.github/workflows/docker-build.yml@master
-    with:
-      SERVICE_LOCATION: ${{ matrix.SERVICE_LOCATION }}
-      SERVICE_NAME: ${{ matrix.SERVICE_NAME }}
-    secrets:
-      DEV_NAMESPACE_DOCKER_HUB: ${{ secrets.DEV_NAMESPACE_DOCKER_HUB }}
-      ACTOR_DOCKER_HUB: ${{ secrets.ACTOR_DOCKER_HUB }}
-      RELEASE_DOCKER_HUB: ${{ secrets.RELEASE_DOCKER_HUB }}
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+    - name: Log into registry
+      run: echo "${{ secrets.release_docker_hub }}" | docker login -u ${{ secrets.actor_docker_hub }} --password-stdin
 
-  build-dockers-es-connect-init:
-    strategy:
-      matrix:
-        include:
-          - SERVICE_LOCATION: 'build/reporting-init/es-kafka-connect-init'
-            SERVICE_NAME: 'es-kafka-connect-init'
-      fail-fast: false
-    name: ${{ matrix.SERVICE_NAME }}
-    uses: mosip/kattu/.github/workflows/docker-build.yml@master
-    with:
-      SERVICE_LOCATION: ${{ matrix.SERVICE_LOCATION }}
-      SERVICE_NAME: ${{ matrix.SERVICE_NAME }}
-    secrets:
-      DEV_NAMESPACE_DOCKER_HUB: ${{ secrets.DEV_NAMESPACE_DOCKER_HUB }}
-      ACTOR_DOCKER_HUB: ${{ secrets.ACTOR_DOCKER_HUB }}
-      RELEASE_DOCKER_HUB: ${{ secrets.RELEASE_DOCKER_HUB }}
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+    - name: Create Docker
+      run: |
+        NAMESPACE=${{ secrets.dev_namespace_docker_hub }}
+        SERVICE_NAME=cp-kafka-connect-es
+        IMAGE_ID=$NAMESPACE/$SERVICE_NAME
+        IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+        if [[ ${{ env.BRANCH_NAME }} == main || ${{ env.BRANCH_NAME }} == master ]]; then
+          VERSION=latest
+        else
+          VERSION=${{ env.BRANCH_NAME }}
+        fi
+        echo IMAGE_ID=$IMAGE_ID
+        echo VERSION=$VERSION
+        cd build/es-kafka-connecter
+        docker build . -t $IMAGE_ID:$VERSION
+        docker push $IMAGE_ID:$VERSION
+  debezium-fixer:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Setup branch and env
+      run: |
+          # Strip git ref prefix from version
+          echo "BRANCH_NAME=$(echo ${{ github.ref }} | sed -e 's,.*/\(.*\),\1,')" >> $GITHUB_ENV
+
+    - name: Log into registry
+      run: echo "${{ secrets.release_docker_hub }}" | docker login -u ${{ secrets.actor_docker_hub }} --password-stdin
+
+    - name: Create Docker
+      run: |
+        NAMESPACE=${{ secrets.dev_namespace_docker_hub }}
+        SERVICE_NAME=debezium-fixer
+        IMAGE_ID=$NAMESPACE/$SERVICE_NAME
+        IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+        if [[ ${{ env.BRANCH_NAME }} == main || ${{ env.BRANCH_NAME }} == master ]]; then
+          VERSION=latest
+        else
+          VERSION=${{ env.BRANCH_NAME }}
+        fi
+        echo IMAGE_ID=$IMAGE_ID
+        echo VERSION=$VERSION
+        cd build/debezium-fixer
+        docker build . -t $IMAGE_ID:$VERSION
+        docker push $IMAGE_ID:$VERSION
+  reporting-init-debezium:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Setup branch and env
+      run: |
+          # Strip git ref prefix from version
+          echo "BRANCH_NAME=$(echo ${{ github.ref }} | sed -e 's,.*/\(.*\),\1,')" >> $GITHUB_ENV
+
+    - name: Log into registry
+      run: echo "${{ secrets.release_docker_hub }}" | docker login -u ${{ secrets.actor_docker_hub }} --password-stdin
+    - name: Create Docker
+      run: |
+        NAMESPACE=${{ secrets.dev_namespace_docker_hub }}
+        SERVICE_NAME=debezium-init
+        IMAGE_ID=$NAMESPACE/$SERVICE_NAME
+        IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+        if [[ ${{ env.BRANCH_NAME }} == main || ${{ env.BRANCH_NAME }} == master ]]; then
+          VERSION=latest
+        else
+          VERSION=${{ env.BRANCH_NAME }}
+        fi
+        echo IMAGE_ID=$IMAGE_ID
+        echo VERSION=$VERSION
+        cd build/reporting-init/debezium-init
+        docker build . -t $IMAGE_ID:$VERSION
+        docker push $IMAGE_ID:$VERSION
+  reporting-init-es-connect:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Setup branch and env
+      run: |
+          # Strip git ref prefix from version
+          echo "BRANCH_NAME=$(echo ${{ github.ref }} | sed -e 's,.*/\(.*\),\1,')" >> $GITHUB_ENV
+
+    - name: Log into registry
+      run: echo "${{ secrets.release_docker_hub }}" | docker login -u ${{ secrets.actor_docker_hub }} --password-stdin
+
+    - name: Create Docker
+      run: |
+        NAMESPACE=${{ secrets.dev_namespace_docker_hub }}
+        SERVICE_NAME=es-kafka-connect-init
+        IMAGE_ID=$NAMESPACE/$SERVICE_NAME
+        IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+        if [[ ${{ env.BRANCH_NAME }} == main || ${{ env.BRANCH_NAME }} == master ]]; then
+          VERSION=latest
+        else
+          VERSION=${{ env.BRANCH_NAME }}
+        fi
+        echo IMAGE_ID=$IMAGE_ID
+        echo VERSION=$VERSION
+        cd build/reporting-init/es-kafka-connect-init
+        docker build . -t $IMAGE_ID:$VERSION
+        docker push $IMAGE_ID:$VERSION
