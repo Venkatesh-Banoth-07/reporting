@@ -7,7 +7,6 @@
 #   db_pass_direct:
 #   es_url:
 #   kibana_url:
-#
 
 debezium_connectors:
   enabled: true
