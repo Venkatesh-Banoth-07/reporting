@@ -25,7 +25,7 @@ debezium_connectors:
   - name: "mosip_regprc"
     tables: "regprc.registration,regprc.registration_list,regprc.anonymous_profile,regprc.registration_transaction"
   - name: "mosip_idrepo"
-    tables: "idrepo.anonymous_profile,idrepo.channel_info"
+    tables: "idrepo.anonymous_profile,idrepo.channel_info,idrepo.credential_request_status"
 
 es_kafka_connectors:
   enabled: true
