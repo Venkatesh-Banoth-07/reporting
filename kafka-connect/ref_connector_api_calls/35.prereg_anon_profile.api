@@ -1,0 +1,80 @@
+# these following will be taken from env
+#DB_USER=
+#DB_PORT=
+#DB_HOSTNAME=
+#DB_PASS=
+#DB_PREFIX_INDEX=
+#ES_URL=
+
+CONN_NAME="prereg_anon_profile_$DB_PREFIX_INDEX";
+
+ES_CONN_URL='es-connect:8083';
+
+DB_NAME='mosip_prereg';
+DB_TABLES='prereg.anonymous_profile'
+ES_INDICES=$(echo $DB_TABLES | sed -E "s/([^,]+)/$DB_PREFIX_INDEX.\1/g")
+
+curl \
+  -X POST \
+  http://$ES_CONN_URL/connectors \
+  -H 'Content-Type: application/json' \
+  -d \
+  '{
+      "name": '\"$CONN_NAME\"',
+      "config": {
+          "connector.class": "io.confluent.connect.elasticsearch.ElasticsearchSinkConnector",
+          "name": '\"$CONN_NAME\"',
+          "connection.url": '\"$ES_URL\"',
+          "tasks.max": "1",
+          "topics": '\"$ES_INDICES\"',
+          "key.ignore": "false",
+          "schema.ignore": "true",
+          "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+          "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+          "key.converter.schemas.enable": "false",
+          "value.converter.schemas.enable": "false",
+
+          "behavior.on.null.values": "DELETE",
+
+          "transforms": "extValue1,extValue2,extKey1,extKey2,tsconvert01,tsconvert02,tsconvert03,stringtojson01,anonTransform,tsSelect",
+
+          "transforms.extValue1.type": "org.apache.kafka.connect.transforms.ExtractField$Value",
+          "transforms.extValue1.field": "payload",
+          "transforms.extValue2.type": "org.apache.kafka.connect.transforms.ExtractField$Value",
+          "transforms.extValue2.field": "after",
+
+          "transforms.extKey1.type": "org.apache.kafka.connect.transforms.ExtractField$Key",
+          "transforms.extKey1.field": "payload",
+          "transforms.extKey2.type": "org.apache.kafka.connect.transforms.ExtractField$Key",
+          "transforms.extKey2.field": "id",
+
+          "transforms.tsconvert01.type": "io.mosip.kafka.connect.transforms.TimestampConverterAdv$Value",
+          "transforms.tsconvert01.field": "cr_dtimes",
+          "transforms.tsconvert01.input.type": "micro_sec",
+
+          "transforms.tsconvert02.type": "io.mosip.kafka.connect.transforms.TimestampConverterAdv$Value",
+          "transforms.tsconvert02.field": "upd_dtimes",
+          "transforms.tsconvert02.input.type": "micro_sec",
+
+          "transforms.tsconvert03.type": "io.mosip.kafka.connect.transforms.TimestampConverterAdv$Value",
+          "transforms.tsconvert03.field": "del_dtimes",
+          "transforms.tsconvert03.input.type": "micro_sec",
+
+          "transforms.stringtojson01.type": "io.mosip.kafka.connect.transforms.StringToJson$Value",
+          "transforms.stringtojson01.input.field": "profile",
+
+          "transforms.anonTransform.type": "io.mosip.kafka.connect.transforms.AnonymousProfileTransform$Value",
+          "transforms.anonTransform.profiles.fields.list": "profile",
+          "transforms.anonTransform.age.groups.list": "0-5, 5-18, 18-60, 60 and above",
+          "transforms.anonTransform.age.groups.output.field": "ageGroup",
+          "transforms.anonTransform.channel.groups.list": "Both phone and email,only phone,only email,None",
+          "transforms.anonTransform.es.url": '\"$ES_URL\"',
+          "transforms.anonTransform.kafka.topic.name": '\"$ES_INDICES\"',
+          "transforms.anonTransform.profile.listOfFunctions": "processCitizenshipType,processGender,processDocuments,processChannel,processAgeGroup,processLocation,processDisability,processTribe",
+          "transforms.anonTransform.listOfFunctions": "",
+
+          "transforms.tsSelect.type": "io.mosip.kafka.connect.transforms.TimestampSelector$Value",
+          "transforms.tsSelect.ts.order": "upd_dtimes,cr_dtimes",
+          "transforms.tsSelect.output.field": "@timestamp_gen"
+      }
+}'
