@@ -70,7 +70,7 @@ curl \
           "transforms.anonTransform.channel.groups.list": "Both phone and email,only phone,only email,None",
           "transforms.anonTransform.es.url": '\"$ES_URL\"',
           "transforms.anonTransform.kafka.topic.name": '\"$ES_INDICES\"',
-          "transforms.anonTransform.profile.listOfFunctions": "processCitizenshipType,processGender,processDocuments,processChannel,processAgeGroup,processLocation,processDisability,processTribe",
+          "transforms.anonTransform.profile.listOfFunctions": "processCitizenshipType,processGender,processDocuments,processChannel,processAgeGroup,processLocation,processDisability,processTribe,processDistrict,processService,processServiceType",
           "transforms.anonTransform.listOfFunctions": "",
 
           "transforms.tsSelect.type": "io.mosip.kafka.connect.transforms.TimestampSelector$Value",
