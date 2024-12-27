@@ -92,7 +92,7 @@ curl \
           "transforms.anonTransform.channel.groups.list": "Both phone and email,only phone,only email,None",
           "transforms.anonTransform.es.url": '\"$ES_URL\"',
           "transforms.anonTransform.kafka.topic.name": '\"$ES_INDICES\"',
-          "transforms.anonTransform.profile.listOfFunctions": "processBiometricList,processAgeGroup,processChannel,processProcessName,processAssister,processLocationList",
+          "transforms.anonTransform.profile.listOfFunctions": "processBiometricList,processAgeGroup,processChannel,processProcessName,processAssister,processLocationList,processDistrict,processEnrolmentOffice,processServiceType",
           "transforms.anonTransform.listOfFunctions": "processRegistrationCenter",
 
           "transforms.tsSelect.type": "io.mosip.kafka.connect.transforms.TimestampSelector$Value",

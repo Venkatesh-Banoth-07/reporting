@@ -80,7 +80,7 @@ curl \
           "transforms.anonTransformProfile.channel.groups.list": "Both phone and email,only phone,only email,None",
           "transforms.anonTransformProfile.es.url": '\"$ES_URL\"',
           "transforms.anonTransformProfile.kafka.topic.name": '\"$ES_INDICES\"',
-          "transforms.anonTransformProfile.profile.listOfFunctions": "processBiometricList,processAgeGroup,processChannel,processProcessName,processLocationList",
+          "transforms.anonTransformProfile.profile.listOfFunctions": "processBiometricList,processAgeGroup,processChannel,processProcessName,processLocationList,processDistrict,processEnrolmentOffice,processService,processServiceType",
           "transforms.anonTransformProfile.listOfFunctions": "",
 
           "transforms.join01.type": "io.mosip.kafka.connect.transforms.DynamicNewField$Value",

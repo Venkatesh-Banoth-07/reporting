@@ -36,7 +36,7 @@ curl \
 
           "behavior.on.null.values": "DELETE",
 
-          "transforms": "debezExtract,tsconvert01,tsconvert02,tsconvert03,tsconvert04,tsconvert05,tsconvert06,tsconvert07,tsSelect,join01",
+          "transforms": "debezExtract,tsconvert01,tsconvert02,tsconvert03,tsconvert04,tsconvert05,tsconvert06,tsconvert07,tsSelect,join01,join02",
 
           "transforms.debezExtract.type": "io.debezium.transforms.ExtractNewRecordState",
           "transforms.debezExtract.delete.handling.mode": "drop",
@@ -86,5 +86,9 @@ curl \
           "transforms.join01.es.input.fields": "id",
           "transforms.join01.es.output.field": "name",
           "transforms.join01.output.field": "regcntr_name"
+
+          "transforms.join02.type": "io.mosip.kafka.connect.transforms.InsertField$Value",
+          "transforms.join02.static.field": "document_type",
+          "transforms.join02.static.value": "appointment"
       }
 }';
