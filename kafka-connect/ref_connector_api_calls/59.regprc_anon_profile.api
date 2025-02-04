@@ -39,6 +39,8 @@ curl \
           "errors.tolerance": "all",
           "errors.log.enable": "true",
           "errors.log.include.messages": "true",
+          "behaviour.on.version.conflict": "ignore",
+          "errors.deadletterqueue.topic.name": "dlq-topic",
 
           "transforms": "ext1,ext2,tsconvert01,tsconvert02,tsconvert03,stringtojson01,latitudeJoin,longitudeJoin,join01,anonTransform,tsSelect",
 
