@@ -238,6 +238,7 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
             Map<String, Object> m = new HashMap<>((Map<String, Object>)arr.get(i));
             m.remove("subType");
             String mtype = (String)m.get("type");
+            System.out.println(mtype);
             float qualScoreSum=0,attemptsSum=0;
             int count=0;
             int j;
