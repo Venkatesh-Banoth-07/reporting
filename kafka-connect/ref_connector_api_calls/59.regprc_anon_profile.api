@@ -34,13 +34,12 @@ curl \
           "key.converter.schemas.enable": "false",
           "value.converter.schemas.enable": "false",
 
-          "behavior.on.null.values": "DELETE",
-
           "errors.tolerance": "all",
           "errors.log.enable": "true",
           "errors.log.include.messages": "true",
           "behaviour.on.version.conflict": "ignore",
           "errors.deadletterqueue.topic.name": "dlq-topic",
+          "errors.deadletterqueue.context.headers.enable": "true",
 
           "transforms": "ext1,ext2,tsconvert01,tsconvert02,tsconvert03,stringtojson01,latitudeJoin,longitudeJoin,join01,anonTransform,tsSelect",
 
