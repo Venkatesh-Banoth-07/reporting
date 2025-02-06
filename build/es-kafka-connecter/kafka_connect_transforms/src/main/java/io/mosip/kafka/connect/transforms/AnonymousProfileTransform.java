@@ -238,12 +238,14 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
             Map<String, Object> m = new HashMap<>((Map<String, Object>)arr.get(i));
             m.remove("subType");
             String mtype = (String)m.get("type");
-            System.out.println("the value of Mtype "+ mtype+"end");
+            System.out.println("the value of Mtype "+ mtype+" end");
+           
             float qualScoreSum=0,attemptsSum=0;
             int count=0;
             int j;
             for(j=i;j<arr.size();j++){
                 Map<String, Object> each = (Map<String, Object>)arr.get(j);
+                System.out.println("each ="+((String)each.get("type"))+" end");
                 if(((String)each.get("type")).equals(mtype)) {
                     try{
                         int q =(int)each.get("qualityScore");
