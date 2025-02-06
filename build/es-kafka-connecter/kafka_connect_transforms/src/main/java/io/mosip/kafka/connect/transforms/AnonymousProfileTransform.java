@@ -235,6 +235,12 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
 
         for(int i=0; i<arr.size();){
             // todo: check type before casting
+            Object item = arr.get(i);
+            if (item == null) {
+                arr.remove(i);
+                continue;
+            }
+            
             Map<String, Object> m = new HashMap<>((Map<String, Object>)arr.get(i));
             m.remove("subType");
             String mtype = (String)m.get("type");
