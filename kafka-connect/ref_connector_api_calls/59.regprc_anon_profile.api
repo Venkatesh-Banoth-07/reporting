@@ -34,7 +34,7 @@ curl \
           "key.converter.schemas.enable": "false",
           "value.converter.schemas.enable": "false",
 
-          "behavior.on.null.values": "DELETE",
+          "behavior.on.null.values": "IGNORE",
 
           "errors.tolerance": "all",
           "errors.log.enable": "true",
@@ -43,6 +43,7 @@ curl \
           "errors.deadletterqueue.topic.name": "dlq-topic",
           "errors.deadletterqueue.context.headers.enable": "true",
           "behavior.on.malformed.documents": "IGNORE",
+          "use.event.time.ordering": "true",
 
 
           "transforms": "ext1,ext2,tsconvert01,tsconvert02,tsconvert03,stringtojson01,latitudeJoin,longitudeJoin,join01,anonTransform,tsSelect",

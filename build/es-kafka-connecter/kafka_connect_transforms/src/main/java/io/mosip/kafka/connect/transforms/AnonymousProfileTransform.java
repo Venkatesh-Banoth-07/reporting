@@ -39,6 +39,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> implements Transformation<R> {
 
@@ -327,22 +328,32 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
                         try {
                             Object digitalIdObj = m.get("digitalId");
                             if (digitalIdObj instanceof String) {
-                                String digitalIdStr = (String)digitalIdObj;
-                                try {
+                                String digitalIdStr = ((String) digitalIdObj).trim();
+                     
+                                // Check if digitalIdStr is JSON object or array
+                                if (digitalIdStr.startsWith("[")) {
+                                    // Handle JSON array
+                                    m.put("digitalId", StringToJson.returnSchemalessObject(new JSONArray(digitalIdStr)));
+                                } else if (digitalIdStr.startsWith("{")) {
+                                    // Handle JSON object
                                     m.put("digitalId", StringToJson.returnSchemalessObject(new JSONObject(digitalIdStr)));
-                                } catch (JSONException je) {
-                                    String str = new String(new Base64(true).decode(digitalIdStr));
-                                    m.put("digitalId", StringToJson.returnSchemalessObject(new JSONObject(str)));
+                                } 
+                                else {
+                                    // For invalid JSON format, store the raw string as an error message
+                                    m.put("digitalId", "Invalid JSON format: " + digitalIdStr);
                                 }
+                     
+                                // If digitalId is a map, remove the "dateTime" field
                                 if (m.get("digitalId") instanceof Map) {
-                                    ((Map<String, Object>)m.get("digitalId")).remove("dateTime");
+                                    ((Map<String, Object>) m.get("digitalId")).remove("dateTime");
                                 }
                             }
                         } catch (Exception e) {
-                            System.out.println("Warning: Error processing digitalId: " + e.getMessage());
-                            m.remove("digitalId");
+                            // Catch errors and store the error message in the digitalId field
+                            m.put("digitalId", "Error processing digitalId: " + e.getMessage());
                         }
                     }
+                     
     
                     m.put("attempts", count == 0 ? 0 : attemptsSum/count);
                     m.put("qualityScore", count == 0 ? 0 : qualScoreSum/count);
@@ -570,23 +581,46 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
     //     return returnValue;
     // }
 
-    static void esPutMapping(String esUrl, String topicName){
-        String sRequest= "{\"mappings\": {\"properties\": {\"registrationCenterGeoLocation\": {\"type\": \"geo_point\"}, \"profile\": {\"properties\": {\"updateId\": {\"type\": \"keyword\"}}}}}}";
 
-        CloseableHttpClient hClient= HttpClients.createDefault();
-        HttpPut hPut = new HttpPut(esUrl+"/"+topicName+"/");
+    static void esPutMapping(String esUrl, String topicName) {
+        String sRequest = "{"
+                + "\"properties\": {"
+                + "\"registrationCenterGeoLocation\": {\"type\": \"geo_point\"},"
+                + "\"profile\": {"
+                + "   \"properties\": {"
+                + "       \"updateId\": {\"type\": \"keyword\"},"
+                + "       \"schema\": {"
+                + "           \"properties\": {"
+                + "               \"fields\": {"
+                + "                   \"properties\": {"
+                + "                       \"fields\": {"
+                + "                           \"properties\": {"
+                + "                               \"default\": {\"type\": \"text\"}"
+                + "                           }"
+                + "                       }"
+                + "                   }"
+                + "               }"
+                + "           }"
+                + "       }"
+                + "   }"
+                + "}"
+                + "}"
+                + "}";
+     
+        CloseableHttpClient hClient = HttpClients.createDefault();
+        HttpPut hPut = new HttpPut(esUrl + "/" + topicName + "/_mapping");
         hPut.setHeader("Content-type", "application/json");
-        hPut.setEntity(new StringEntity(sRequest));
-        try(CloseableHttpResponse hResponse = hClient.execute(hPut)){
+        hPut.setEntity(new StringEntity(sRequest, StandardCharsets.UTF_8));
+        try (CloseableHttpResponse hResponse = hClient.execute(hPut)) {
             HttpEntity entity = hResponse.getEntity();
             String jsonString = EntityUtils.toString(entity);
-            if(hResponse.getCode()!=200){
-                System.out.println(">>>>>>>Unsuccessful while putting mapping : " + jsonString);
+            if (hResponse.getCode() != 200) {
+                System.out.println(">>>>>>> Unsuccessful while putting mapping : " + jsonString);
+            } else {
+                System.out.println(">>>>>>> Mapping update successful: " + jsonString);
             }
-        }
-        catch(Exception e){
-            System.out.println(">>>>>>>In Exception: Unsuccessful while putting mapping : "+e);
+        } catch (Exception e) {
+            System.out.println(">>>>>>> In Exception: Unsuccessful while putting mapping : " + e);
         }
     }
-
 }
