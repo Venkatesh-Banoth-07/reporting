@@ -224,81 +224,140 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
     //     return updatedKey.get('payload')
     // } 
 
-    static void processBiometricList(Map<String, Object> updatedValue){
-        if( updatedValue.get("biometricInfo") == null ){
-            return;
-        }
-
-        List<Object> arr = (List<Object>)updatedValue.get("biometricInfo");
-
-        Map<String, Object> ret = new HashMap<>();
-
-        for(int i=0; i<arr.size();){
-            // todo: check type before casting
-            Object item = arr.get(i);
-            if (item == null) {
-                arr.remove(i);
-                continue;
+    static void processBiometricList(Map<String, Object> updatedValue) {
+        try {
+            // If biometricInfo is null, just return without modification
+            if (updatedValue == null || updatedValue.get("biometricInfo") == null) {
+                return;
             }
+    
+            Object biometricObj = updatedValue.get("biometricInfo");
+            if (!(biometricObj instanceof List)) {
+                System.out.println("Warning: biometricInfo is not a List, skipping processing");
+                return;
+            }
+    
+            List<Object> arr = (List<Object>)biometricObj;
+            Map<String, Object> ret = new HashMap<>();
+    
+            for (int i = 0; i < arr.size();) {
+                try {
+                    Object item = arr.get(i);
+                    if (item == null) {
+                        arr.remove(i);
+                        continue;
+                    }
+                    
+                    if (!(item instanceof Map)) {
+                        System.out.println("Warning: biometric item is not a Map, skipping");
+                        arr.remove(i);
+                        continue;
+                    }
+    
+                    Map<String, Object> m = new HashMap<>((Map<String, Object>)item);
+                    if (m.get("type") == null) {
+                        System.out.println("Warning: biometric item has no type, skipping");
+                        arr.remove(i);
+                        continue;
+                    }
+    
+                    String mtype = (String)m.get("type");
+                    m.remove("subType");
+                    
+                    float qualScoreSum = 0, attemptsSum = 0;
+                    int count = 0;
+                    int j;
+                    
+                    for (j = i; j < arr.size(); j++) {
+                        try {
+                            Object eachObj = arr.get(j);
+                            if (!(eachObj instanceof Map)) {
+                                arr.remove(j--);
+                                continue;
+                            }
+    
+                            Map<String, Object> each = (Map<String, Object>)eachObj;
+                            if (each.get("type") == null || !((String)each.get("type")).equals(mtype)) {
+                                continue;
+                            }
+    
+                            // Safely get qualityScore and attempts
+                            Object qualityScoreObj = each.get("qualityScore");
+                            Object attemptsObj = each.get("attempts");
+                            
+                            if (qualityScoreObj != null && attemptsObj != null) {
+                                int qualityScore;
+                                int attempts;
+                                
+                                // Handle different types of qualityScore
+                                if (qualityScoreObj instanceof Integer) {
+                                    qualityScore = (Integer)qualityScoreObj;
+                                } else if (qualityScoreObj instanceof String) {
+                                    qualityScore = Integer.parseInt((String)qualityScoreObj);
+                                } else {
+                                    continue;
+                                }
+                                
+                                // Handle different types of attempts
+                                if (attemptsObj instanceof Integer) {
+                                    attempts = (Integer)attemptsObj;
+                                } else if (attemptsObj instanceof String) {
+                                    attempts = Integer.parseInt((String)attemptsObj);
+                                } else {
+                                    continue;
+                                }
+                                
+                                count++;
+                                qualScoreSum += qualityScore;
+                                attemptsSum += attempts;
+                            }
+                            
+                            arr.remove(j--);
+                        } catch (Exception e) {
+                            System.out.println("Warning: Error processing biometric item: " + e.getMessage());
+                            arr.remove(j--);
+                        }
+                    }
+    
+                    // Process digitalId if present
+                    if (m.get("digitalId") != null) {
+                        try {
+                            Object digitalIdObj = m.get("digitalId");
+                            if (digitalIdObj instanceof String) {
+                                String digitalIdStr = (String)digitalIdObj;
+                                try {
+                                    m.put("digitalId", StringToJson.returnSchemalessObject(new JSONObject(digitalIdStr)));
+                                } catch (JSONException je) {
+                                    String str = new String(new Base64(true).decode(digitalIdStr));
+                                    m.put("digitalId", StringToJson.returnSchemalessObject(new JSONObject(str)));
+                                }
+                                if (m.get("digitalId") instanceof Map) {
+                                    ((Map<String, Object>)m.get("digitalId")).remove("dateTime");
+                                }
+                            }
+                        } catch (Exception e) {
+                            System.out.println("Warning: Error processing digitalId: " + e.getMessage());
+                            m.remove("digitalId");
+                        }
+                    }
+    
+                    m.put("attempts", count == 0 ? 0 : attemptsSum/count);
+                    m.put("qualityScore", count == 0 ? 0 : qualScoreSum/count);
+                    ret.put(mtype, m);
+                    i = 0;
+                    
+                } catch (Exception e) {
+                    System.out.println("Warning: Error processing biometric record: " + e.getMessage());
+                    arr.remove(i);
+                }
+            }
+    
+            updatedValue.put("biometricInfo", ret);
             
-            Map<String, Object> m = new HashMap<>((Map<String, Object>)arr.get(i));
-            m.remove("subType");
-            String mtype = (String)m.get("type");
-            System.out.println("the value of Mtype "+ mtype+" end");
-           
-            float qualScoreSum=0,attemptsSum=0;
-            int count=0;
-            int j;
-            for(j=i;j<arr.size();j++){
-                Map<String, Object> each = (Map<String, Object>)arr.get(j);
-                System.out.println("each ="+((String)each.get("type"))+" end");
-                if(((String)each.get("type")).equals(mtype)) {
-                    try{
-                        int q =(int)each.get("qualityScore");
-                        int a =Integer.parseInt((String)each.get("attempts"));
-                        count++;
-
-                        qualScoreSum += q;
-                        attemptsSum += a;
-                    }
-                    catch(Exception e){
-                        System.out.println(">>>>>>> " + e);
-                    }
-                    arr.remove(j--);
-                }
-                else{
-                }
-            }
-
-            if(m.get("digitalId")!=null){
-                // System.out.println("=========> DIGITALID PROBLEM " + m.get("digitalId"));
-                try{
-                    m.put("digitalId", StringToJson.returnSchemalessObject(new JSONObject((String)m.get("digitalId"))));
-                    ((Map<String, Object>)m.get("digitalId")).remove("dateTime");
-                }
-                catch(JSONException je){
-                    try{
-                        String str = (String)m.get("digitalId");
-                        str = new String(new Base64(true).decode(str));
-                        m.put("digitalId", StringToJson.returnSchemalessObject(new JSONObject(str)));
-                        ((Map<String, Object>)m.get("digitalId")).remove("dateTime");
-                    }
-                    catch(Exception e){
-                      e.printStackTrace();
-                    }
-                }
-            }
-
-
-            m.put("attempts",count == 0 ? 0 : attemptsSum/count);
-            m.put("qualityScore", count == 0 ? 0 : qualScoreSum/count);
-
-            ret.put(mtype,m);
-
-            i=0;
+        } catch (Exception e) {
+            System.out.println("Error in processBiometricList: " + e.getMessage());
+            // Don't throw exception, just return without modification
         }
-
-        updatedValue.put("biometricInfo",ret);
     }
 
     static void processLocationList(Map<String, Object> updatedValue){
