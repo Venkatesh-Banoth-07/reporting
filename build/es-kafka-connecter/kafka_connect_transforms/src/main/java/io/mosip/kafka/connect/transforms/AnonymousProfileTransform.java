@@ -239,25 +239,30 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
     
             List<Object> arr = (List<Object>)biometricObj;
             Map<String, Object> ret = new HashMap<>();
+            int nullCount = 0;
+            List<Map<String, Object>> processedList = new ArrayList<>(); // New list to store processed items
     
-            for (int i = 0; i < arr.size();) {
+            for (int i = 0; i < arr.size();i++) {
                 try {
                     Object item = arr.get(i);
                     if (item == null) {
-                        arr.remove(i);
+                        System.out.println("Processing null biometric item.");
+                        nullCount++; 
+                        Map<String, Object> placeholder = new HashMap<>();
+                        placeholder.put("type", "unknown");
+                        placeholder.put("message", "Null record");
+                        processedList.add(placeholder);
                         continue;
                     }
                     
                     if (!(item instanceof Map)) {
                         System.out.println("Warning: biometric item is not a Map, skipping");
-                        arr.remove(i);
                         continue;
                     }
     
                     Map<String, Object> m = new HashMap<>((Map<String, Object>)item);
                     if (m.get("type") == null) {
                         System.out.println("Warning: biometric item has no type, skipping");
-                        arr.remove(i);
                         continue;
                     }
     
@@ -268,11 +273,10 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
                     int count = 0;
                     int j;
                     
-                    for (j = i; j < arr.size(); j++) {
+                    for (j = i+1; j < arr.size(); j++) {
                         try {
                             Object eachObj = arr.get(j);
                             if (!(eachObj instanceof Map)) {
-                                arr.remove(j--);
                                 continue;
                             }
     
@@ -312,10 +316,9 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
                                 attemptsSum += attempts;
                             }
                             
-                            arr.remove(j--);
+                            
                         } catch (Exception e) {
                             System.out.println("Warning: Error processing biometric item: " + e.getMessage());
-                            arr.remove(j--);
                         }
                     }
     
@@ -344,15 +347,17 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
                     m.put("attempts", count == 0 ? 0 : attemptsSum/count);
                     m.put("qualityScore", count == 0 ? 0 : qualScoreSum/count);
                     ret.put(mtype, m);
-                    i = 0;
+                    processedList.add(m);
+                    
                     
                 } catch (Exception e) {
                     System.out.println("Warning: Error processing biometric record: " + e.getMessage());
-                    arr.remove(i);
+                    
                 }
             }
     
-            updatedValue.put("biometricInfo", ret);
+            updatedValue.put("biometricInfo", processedList);
+            updatedValue.put("nullRecords", nullCount); // Track null values separately
             
         } catch (Exception e) {
             System.out.println("Error in processBiometricList: " + e.getMessage());
