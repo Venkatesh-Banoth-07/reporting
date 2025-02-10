@@ -40,7 +40,7 @@ curl \
           "errors.log.enable": "true",
           "errors.log.include.messages": "true",
           "behaviour.on.version.conflict": "ignore",
-          "errors.deadletterqueue.topic.name": "dlq-topic",
+          "errors.deadletterqueue.topic.name": "dlq-niradev.regprc.anonymous_profile",
           "errors.deadletterqueue.context.headers.enable": "true",
           "behavior.on.malformed.documents": "IGNORE",
           "use.event.time.ordering": "true",
