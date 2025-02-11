@@ -38,6 +38,7 @@ curl \
 
           "errors.tolerance": "all",
           "errors.log.enable": "true",
+          "drop.tombstones": "false",
           "errors.log.include.messages": "true",
           "behaviour.on.version.conflict": "ignore",
           "errors.deadletterqueue.topic.name": "dlq-niradev.regprc.anonymous_profile",
