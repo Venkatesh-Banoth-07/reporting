@@ -407,31 +407,65 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
         updatedValue.put("registrationOfficers",ret);
     }
 
-    static void processAgeGroup(Map<String, Object> updatedValue, String[] agList, String agOut, String date){
-        if(date == null || updatedValue.get("yearOfBirth") == null){
-            return;
-        }
-        Object yob = updatedValue.get("yearOfBirth");
-        int yearOfBirth;
-        if(yob instanceof Integer){
-            yearOfBirth = (int)yob;
-        } else if(yob instanceof String){
-            yearOfBirth = Integer.parseInt((String)yob);
-        } else{
-            return;
-        }
-
-        int age = Integer.parseInt(date.split("-")[0])-yearOfBirth;
-        int i;
-        for(i=0;i<agList.length-1;i++){
-            String[] ag = agList[i].trim().split("-");
-            if(age>=Integer.parseInt(ag[0]) && age<Integer.parseInt(ag[1])){
-                break;
-            }
-        }
-        updatedValue.put(agOut,agList[i].trim());
-    }
     
+    static void processAgeGroup(Map<String, Object> updatedValue, String[] agList, String agOut, String date) {
+        // Check if date is null or empty
+        if (date == null || date.isEmpty()) {
+            return;
+        }
+        
+        // Check if yearOfBirth exists
+        Object yob = updatedValue.get("yearOfBirth");
+        if (yob == null) {
+            return;
+        }
+        
+        int yearOfBirth;
+        if (yob instanceof Integer) {
+            yearOfBirth = (int) yob;
+        } else if (yob instanceof String) {
+            String yobString = (String) yob;
+            // Handle empty strings
+            if (yobString.isEmpty()) {
+                return;
+            }
+            try {
+                yearOfBirth = Integer.parseInt(yobString);
+            } catch (NumberFormatException e) {
+                // Handle invalid number format
+                return;
+            }
+        } else {
+            return;
+        }
+        
+        try {
+            // Safely parse date components
+            String[] dateParts = date.split("-");
+            if (dateParts.length < 1) {
+                return;
+            }
+            
+            int currentYear = Integer.parseInt(dateParts[0]);
+            int age = currentYear - yearOfBirth;
+            
+            int i;
+            for (i = 0; i < agList.length - 1; i++) {
+                String[] ag = agList[i].trim().split("-");
+                if (ag.length < 2) {
+                    continue; // Skip malformed age group
+                }
+                if (age >= Integer.parseInt(ag[0]) && age < Integer.parseInt(ag[1])) {
+                    break;
+                }
+            }
+            updatedValue.put(agOut, agList[i].trim());
+        } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+            // Safely handle any parsing exceptions
+            return;
+        }
+    }
+
     static void processChannel(Map<String, Object> updatedValue, String[] agList){
 
         // agList expected in the form Both phone email, only phone, only email, None
