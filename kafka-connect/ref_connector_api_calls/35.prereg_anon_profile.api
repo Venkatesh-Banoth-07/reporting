@@ -43,7 +43,7 @@ curl \
           "behavior.on.version.conflict": "ignore",
           "errors.deadletterqueue.topic.name": '\"dlq-$ES_INDICES\"',
           "admin.client.id": '\"connector-dlq-adminclient-$ES_INDICES\"',
-          "producer.metrics.recording.level": INFO,
+          "producer.metrics.recording.level": "INFO",
           "errors.deadletterqueue.context.headers.enable": "true",
           "behavior.on.malformed.documents": "IGNORE",
           "use.event.time.ordering": "true",
