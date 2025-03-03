@@ -67,6 +67,8 @@ curl \
 
           "transforms.tsSelect.type": "io.mosip.kafka.connect.transforms.TimestampSelector$Value",
           "transforms.tsSelect.ts.order": "upd_dtimes,cr_dtimes",
-          "transforms.tsSelect.output.field": "@timestamp_gen"
+          "transforms.tsSelect.output.field": "@timestamp_gen",
+          "transforms.tsSelect.default.field": "source_ts_ms",
+          "transforms.tsSelect.use.current.time": "true"
       }
 }';
