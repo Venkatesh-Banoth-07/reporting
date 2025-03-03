@@ -48,7 +48,7 @@ curl \
           "behavior.on.malformed.documents": "IGNORE",
           "use.event.time.ordering": "true",
 
-          "transforms": "ext1,ext2,tsconvert01,tsconvert02,tsconvert03,stringtojson01,anonTransform,tsSelect",
+          "transforms": "ext1,ext2,tsconvert01,tsconvert02,tsconvert03,stringtojson01,anonTransform,tsSelect,pipelineApply",
 
           "transforms.ext1.type": "org.apache.kafka.connect.transforms.ExtractField$Value",
           "transforms.ext1.field": "payload",
@@ -82,6 +82,9 @@ curl \
 
           "transforms.tsSelect.type": "io.mosip.kafka.connect.transforms.TimestampSelector$Value",
           "transforms.tsSelect.ts.order": "upd_dtimes,cr_dtimes",
-          "transforms.tsSelect.output.field": "@timestamp_gen"
+          "transforms.tsSelect.output.field": "@timestamp_gen",
+
+          "transforms.pipelineApply.type": "org.apache.kafka.connect.transforms.SetSchemaMetadata$Value",
+          "transforms.pipelineApply.schema.name": "serviceType_enrichment_pipeline"
       }
 }';
