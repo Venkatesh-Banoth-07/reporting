@@ -8,74 +8,72 @@ import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.transforms.Transformation;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 
-import java.util.Map;
+import java.util.Arrays;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.io.IOException;
 
 import io.mosip.kafka.connect.transforms.SchemaUtil;
 import static io.mosip.kafka.connect.transforms.Requirements.requireMap;
+import static io.mosip.kafka.connect.transforms.Requirements.requireSinkRecord;
 import static io.mosip.kafka.connect.transforms.Requirements.requireStruct;
 
 public abstract class TimestampSelector<R extends ConnectRecord<R>> implements Transformation<R> {
 
-    private class Config {
+    private class Config{
         String[] tsOrder;
         String outputField;
-        String defaultTimestampField;
-        boolean useCurrentTime;
 
-        Config(String[] tso, String outField, String defaultField, boolean useCurrent) {
+        Config(String[] tso, String outField){
             this.tsOrder = tso;
             this.outputField = outField;
-            this.defaultTimestampField = defaultField;
-            this.useCurrentTime = useCurrent;
         }
+
+        // Object make(Object input){
+        //
+        // }
     }
 
+    public static final String PURPOSE = "select timestamp in order";
     public static final String TS_ORDER_CONFIG = "ts.order";
     public static final String OUTPUT_FIELD_CONFIG = "output.field";
-    public static final String DEFAULT_FIELD_CONFIG = "default.field";
-    public static final String USE_CURRENT_TIME_CONFIG = "use.current.time";
 
     private Config config;
     private Cache<Schema, Schema> schemaUpdateCache;
 
     public static ConfigDef CONFIG_DEF = new ConfigDef()
-        .define(TS_ORDER_CONFIG, ConfigDef.Type.STRING, "", ConfigDef.Importance.HIGH, 
-                "The order of the timestamp fields to select from.")
-        .define(OUTPUT_FIELD_CONFIG, ConfigDef.Type.STRING, "@timestamp", ConfigDef.Importance.HIGH, 
-                "Name of the resultant/output timestamp field.")
-        .define(DEFAULT_FIELD_CONFIG, ConfigDef.Type.STRING, "", ConfigDef.Importance.MEDIUM, 
-                "Default field to use if no timestamp fields are found.")
-        .define(USE_CURRENT_TIME_CONFIG, ConfigDef.Type.BOOLEAN, true, ConfigDef.Importance.MEDIUM, 
-                "Use current time if no timestamp field is found.");
+        .define(TS_ORDER_CONFIG, ConfigDef.Type.STRING, "", ConfigDef.Importance.HIGH, "The order of the timestamp fields to select from.")
+        .define(OUTPUT_FIELD_CONFIG, ConfigDef.Type.STRING, "@ts_generated", ConfigDef.Importance.HIGH, "Name of the resultant/ouptut timestamp field.");
 
     @Override
     public void configure(Map<String, ?> configs) {
         AbstractConfig absconf = new AbstractConfig(CONFIG_DEF, configs, false);
 
-        schemaUpdateCache = new SynchronizedCache<>(new LRUCache<Schema, Schema>(16));
+        schemaUpdateCache = new SynchronizedCache<>(new LRUCache<Schema,Schema>(16));
 
         String tsOrderBulk = absconf.getString(TS_ORDER_CONFIG);
         String outputField = absconf.getString(OUTPUT_FIELD_CONFIG);
-        String defaultField = absconf.getString(DEFAULT_FIELD_CONFIG);
-        boolean useCurrentTime = absconf.getBoolean(USE_CURRENT_TIME_CONFIG);
 
-        if (tsOrderBulk.isEmpty()) {
-            throw new ConfigException("Required transform config field not set: " + TS_ORDER_CONFIG);
+        if(tsOrderBulk.isEmpty()){
+            throw new ConfigException("One of required transform config fields not set. Required field in tranforms: " + TS_ORDER_CONFIG + ". Optional Fields: " + OUTPUT_FIELD_CONFIG);
         }
 
-        String[] tsOrder = tsOrderBulk.replaceAll("\\s+", "").split(",");
+        String[] tsOrder = tsOrderBulk.replaceAll("\\s+","").split(",");
 
-        if (tsOrder.length == 0) {
+        if(tsOrder.length == 0){
             throw new ConfigException("Number of fields in timestamp order are zero.");
         }
 
-        config = new Config(tsOrder, outputField, defaultField, useCurrentTime);
+        config = new Config(tsOrder,outputField);
     }
 
     @Override
@@ -118,8 +116,7 @@ public abstract class TimestampSelector<R extends ConnectRecord<R>> implements T
 
         @Override
         protected R newRecord(R record, Schema updatedSchema, Object updatedValue) {
-            return record.newRecord(record.topic(), record.kafkaPartition(), updatedSchema, updatedValue, 
-                    record.valueSchema(), record.value(), record.timestamp());
+            return record.newRecord(record.topic(), record.kafkaPartition(), updatedSchema, updatedValue, record.valueSchema(), record.value(), record.timestamp());
         }
     }
 
@@ -136,151 +133,61 @@ public abstract class TimestampSelector<R extends ConnectRecord<R>> implements T
 
         @Override
         protected R newRecord(R record, Schema updatedSchema, Object updatedValue) {
-            return record.newRecord(record.topic(), record.kafkaPartition(), record.keySchema(), record.key(), 
-                    updatedSchema, updatedValue, record.timestamp());
+            return record.newRecord(record.topic(), record.kafkaPartition(), record.keySchema(), record.key(), updatedSchema, updatedValue, record.timestamp());
         }
     }
 
+
     private R applySchemaless(R record) {
-        try {
-            final Map<String, Object> value = requireMap(operatingValue(record), "TimestampSelector");
-            final Map<String, Object> updatedValue = new HashMap<>(value);
+        final Map<String, Object> value = requireMap(operatingValue(record), PURPOSE);
 
-            // Try each field in order
-            Object timestamp = null;
-            for (String field : config.tsOrder) {
-                try {
-                    Object fieldValue = getNestedField(value, field);
-                    if (fieldValue != null && !fieldValue.toString().isEmpty()) {
-                        timestamp = fieldValue;
-                        break;
-                    }
-                } catch (Exception e) {
-                    // Continue to next field if there's an error
-                    continue;
-                }
-            }
+        final Map<String, Object> updatedValue = new HashMap<>(value);
 
-            // If no timestamp found in specified fields
-            if (timestamp == null) {
-                // Try default field if specified
-                if (!config.defaultTimestampField.isEmpty()) {
-                    try {
-                        timestamp = getNestedField(value, config.defaultTimestampField);
-                    } catch (Exception e) {
-                        // Ignore if default field is also problematic
-                    }
-                }
-                
-                // Use current time as last resort if configured
-                if (timestamp == null && config.useCurrentTime) {
-                    timestamp = System.currentTimeMillis();
-                }
-            }
-
-            // Only add output field if we found a timestamp
-            if (timestamp != null) {
-                updatedValue.put(config.outputField, timestamp);
-            }
-
-            return newRecord(record, null, updatedValue);
-        } catch (Exception e) {
-            // If anything goes wrong, just return the original record
-            return record;
+        Object ret=null;
+        for(String field : config.tsOrder){
+            ret = Requirements.getNestedField(value,field);
+            if(ret!=null){ break; }
         }
+        if(ret==null){
+            throw new DataException("None of the fields mentioned in timestamp order have a valid value.");
+        }
+
+        updatedValue.put(config.outputField, ret);
+
+        return newRecord(record, null, updatedValue);
     }
 
     private R applyWithSchema(R record) {
-        try {
-            final Struct value = requireStruct(operatingValue(record), "TimestampSelector");
-            
-            // Find timestamp and schema
-            Object timestamp = null;
-            Schema timestampSchema = null;
-            
-            // Try each field in order
-            for (String field : config.tsOrder) {
-                try {
-                    Field schemaField = value.schema().field(field);
-                    if (schemaField != null) {
-                        Object fieldValue = value.get(field);
-                        if (fieldValue != null && !fieldValue.toString().isEmpty()) {
-                            timestamp = fieldValue;
-                            timestampSchema = schemaField.schema();
-                            break;
-                        }
-                    }
-                } catch (Exception e) {
-                    // Continue to next field if there's an error
-                    continue;
-                }
-            }
+        final Struct value = requireStruct(operatingValue(record), PURPOSE);
 
-            // If no timestamp found in specified fields
-            if (timestamp == null) {
-                // Try default field if specified
-                if (!config.defaultTimestampField.isEmpty()) {
-                    try {
-                        Field defaultField = value.schema().field(config.defaultTimestampField);
-                        if (defaultField != null) {
-                            timestamp = value.get(config.defaultTimestampField);
-                            timestampSchema = defaultField.schema();
-                        }
-                    } catch (Exception e) {
-                        // Ignore if default field is also problematic
-                    }
-                }
-                
-                // Use current time as last resort if configured
-                if (timestamp == null && config.useCurrentTime) {
-                    timestamp = System.currentTimeMillis();
-                    timestampSchema = Schema.INT64_SCHEMA;  // Current time is a long
-                }
-            }
-
-            // If we still don't have a timestamp, return the original record
-            if (timestamp == null) {
-                return record;
-            }
-
-            // Update schema and create new struct
-            Schema updatedSchema = schemaUpdateCache.get(value.schema());
-            if (updatedSchema == null) {
-                updatedSchema = makeUpdatedSchema(value.schema(), config.outputField, timestampSchema);
-                schemaUpdateCache.put(value.schema(), updatedSchema);
-            }
-
-            final Struct updatedValue = new Struct(updatedSchema);
-            for (Field field : value.schema().fields()) {
-                updatedValue.put(field.name(), value.get(field));
-            }
-            updatedValue.put(config.outputField, timestamp);
-
-            return newRecord(record, updatedSchema, updatedValue);
-        } catch (Exception e) {
-            // If anything goes wrong, just return the original record
-            return record;
+        Object ret=null;
+        Object outSchema=null;
+        for(String field : config.tsOrder){
+            Object tmp = Requirements.getNestedField(value,field);
+            ret = ((Object[])tmp)[0]; outSchema = ((Object[])tmp)[1];
+            if(ret!=null)if(!ret.equals("")) break;
         }
-    }
-
-    private Object getNestedField(Map<String, Object> map, String field) {
-        String[] parts = field.split("\\.");
-        Object current = map;
-        
-        for (String part : parts) {
-            if (current instanceof Map) {
-                current = ((Map<?, ?>) current).get(part);
-                if (current == null) {
-                    return null;
-                }
-            } else {
-                return null;
-            }
+        if(ret==null){
+            throw new DataException("None of the fields mentioned in timestamp order have a valid value.");
         }
-        
-        return current;
-    }
 
+        Schema updatedSchema = schemaUpdateCache.get(value.schema());
+        if (updatedSchema == null) {
+            // Hardcoding to string schema here .. which might not be correct in all cases
+            updatedSchema = makeUpdatedSchema(value.schema(), config.outputField, (Schema)outSchema);
+            schemaUpdateCache.put(value.schema(), updatedSchema);
+        }
+
+        final Struct updatedValue = new Struct(updatedSchema);
+
+        for (Field field : value.schema().fields()) {
+            updatedValue.put(field.name(), value.get(field));
+        }
+
+        updatedValue.put(config.outputField, ret);
+
+        return newRecord(record, updatedSchema, updatedValue);
+    }
     static Schema makeUpdatedSchema(Schema schema, String outField, Schema outSchema) {
         final SchemaBuilder builder = SchemaUtil.copySchemaBasics(schema, SchemaBuilder.struct());
 
@@ -292,4 +199,6 @@ public abstract class TimestampSelector<R extends ConnectRecord<R>> implements T
 
         return builder.build();
     }
+
+
 }
