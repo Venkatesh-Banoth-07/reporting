@@ -187,6 +187,10 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
             }
             
             if(updatedValue != null){
+                if ("CBBI".equals(updatedValue.get("serviceType"))) {  
+                    updatedValue.put("serviceType", "By Birth /Descent"); 
+                }
+ 
                 for(String func : functionsListProfile){
         
                     switch (func) {
