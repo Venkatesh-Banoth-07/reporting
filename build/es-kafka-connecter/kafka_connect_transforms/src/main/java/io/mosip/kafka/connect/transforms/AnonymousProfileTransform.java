@@ -26,6 +26,7 @@ import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -41,8 +42,11 @@ import java.util.Iterator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> implements Transformation<R> {
@@ -172,62 +176,129 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
     }
 
     private R applySchemaless(R record) {
-        final Map<String, Object> value = Requirements.requireMap(operatingValue(record), PURPOSE);
-        // final Map<String, Object> key = Requirements.requireMap(record.key(), PURPOSE);
 
-        Map<String, Object> updatedValueRoot = new HashMap<>(value);
-        // Map<String, Object> updatedKeyRoot = new HashMap<>(key);
-        String date = (String)Requirements.getNestedField(updatedValueRoot,"profile.date");
-        for(int i=0; i<profileFieldsList.length ; i++){
-            Map<String, Object> updatedValue = updatedValueRoot;
-            String[] profHierar = (profileFieldsList[i]).split("\\.");
-            try{
-                for(int j=0; j<profHierar.length ; j++){
-                    updatedValue = (Map<String, Object>)updatedValue.get(profHierar[j]);
-                }
-            }
-            catch(Exception e){
-                throw new ConfigException("Improper profile fields list. Some of the given fields are not found. Given List: " + profileFieldsList + "\n Exception details: " + e);
-            }
-            
-            if(updatedValue != null){
-                for(String func : functionsListProfile){
+    final Map<String, Object> value = Requirements.requireMap(operatingValue(record), PURPOSE);
+ 
+    // Load serviceType.json safely
+
+    InputStream inputStream = getClass().getClassLoader().getResourceAsStream("serviceType.json");
+
+    if (inputStream == null) {
         
-                    switch (func) {
-                        case "processBiometricList": processBiometricList(updatedValue); break;
-                        case "processAgeGroup": processAgeGroup(updatedValue,ageGroupsList,ageGroupsOuputField,date); break;
-                        case "processChannel": processChannel(updatedValue, channelGroupList); break;
-                        case "processProcessName": processProcessName(updatedValue); break;
-                        case "processAssister": processAssister(updatedValue); break;
-                        case "processLocationList": processLocationList(updatedValue); break;     
-                        case "processUpdateProfile": processUpdateProfile(updatedValue, elasticSearchURL, esTopicName); break;               
-                        default: break;
-                    }
-                    
-                // rest of the transform funcs
-                }    
-            }
-        }
-        // call non profile related funcs here
+        throw new RuntimeException("serviceType.json not found in resources folder.");
 
-        for(String func : functionsList){
-            switch (func) {
-                case "processRegistrationCenter": processRegistrationCenter(updatedValueRoot); break;
-                default: break;
-            }
-        }
-
-        // updatedValueRoot = processSchemasForSchemaLess(updatedValueRoot);
-
-
-        // record.newRecord(record.topic(), record.kafkaPartition(), null, updatedKey, null, updatedValueRoot, record.timestamp());
-        
-        return newRecord(record, null, updatedValueRoot);
     }
+ 
+    ObjectMapper objectMapper = new ObjectMapper();
+    Map<String, Object> jsonMap;
 
-    // static String extractId(Map<String, Object> updatedKey){
-    //     return updatedKey.get('payload')
-    // } 
+    try {
+
+        jsonMap = objectMapper.readValue(inputStream, new TypeReference<Map<String, Object>>() {});
+
+    } catch (IOException e) {
+
+        throw new RuntimeException("Error parsing serviceType.json", e);
+
+    }
+ 
+    // Convert JSON fieldVal to Map<String, String>
+    List<Map<String, String>> fieldValList = (List<Map<String, String>>) jsonMap.get("fieldVal");
+    Map<String, String> fieldValueMap = fieldValList.stream()
+
+        .collect(Collectors.toMap(entry -> entry.get("code"), entry -> entry.get("value")));
+ 
+    Map<String, Object> updatedValueRoot = new HashMap<>(value);
+
+    String date = (String) Requirements.getNestedField(updatedValueRoot, "profile.date");
+ 
+    for (int i = 0; i < profileFieldsList.length; i++) {
+
+        Map<String, Object> updatedValue = updatedValueRoot;
+
+        String[] profHierar = (profileFieldsList[i]).split("\\.");
+ 
+        try {
+
+            for (int j = 0; j < profHierar.length; j++) {
+
+                updatedValue = (Map<String, Object>) updatedValue.get(profHierar[j]);
+
+                if (updatedValue != null) {
+
+                    Object serviceTypeObj = updatedValue.get("serviceType");
+ 
+                    if (serviceTypeObj instanceof String) { 
+
+                        String serviceType = (String) serviceTypeObj;
+ 
+                        if (fieldValueMap.containsKey(serviceType)) {
+
+                            updatedValue.put("serviceType", fieldValueMap.get(serviceType));
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        } catch (Exception e) {
+
+            throw new ConfigException("Improper profile fields list. Some of the given fields are not found. Given List: " 
+
+                                      + profileFieldsList + "\n Exception details: " + e);
+
+        }
+ 
+        if (updatedValue != null) {
+
+            for (String func : functionsListProfile) {
+
+                switch (func) {
+
+                    case "processBiometricList": processBiometricList(updatedValue); break;
+
+                    case "processAgeGroup": processAgeGroup(updatedValue, ageGroupsList, ageGroupsOuputField, date); break;
+
+                    case "processChannel": processChannel(updatedValue, channelGroupList); break;
+
+                    case "processProcessName": processProcessName(updatedValue); break;
+
+                    case "processAssister": processAssister(updatedValue); break;
+
+                    case "processLocationList": processLocationList(updatedValue); break;
+
+                    case "processUpdateProfile": processUpdateProfile(updatedValue, elasticSearchURL, esTopicName); break;
+
+                    default: break;
+
+                }
+
+            }
+
+        }
+
+    }
+ 
+    for (String func : functionsList) {
+
+        switch (func) {
+
+            case "processRegistrationCenter": processRegistrationCenter(updatedValueRoot); break;
+
+            default: break;
+
+        }
+
+    }
+ 
+    return newRecord(record, null, updatedValueRoot);
+
+}
+
+ 
 
 
     static void processBiometricList(Map<String, Object> updatedValue) {
