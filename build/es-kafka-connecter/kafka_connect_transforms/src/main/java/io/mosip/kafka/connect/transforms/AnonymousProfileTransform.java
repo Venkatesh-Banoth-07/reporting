@@ -26,6 +26,9 @@ import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.json.JSONObject;
 import org.json.JSONException;
 import org.json.JSONArray;
@@ -38,6 +41,7 @@ import java.util.Iterator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
@@ -180,9 +184,6 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
             try{
                 for(int j=0; j<profHierar.length ; j++){
                     updatedValue = (Map<String, Object>)updatedValue.get(profHierar[j]);
-                    if (updatedValue != null && "CBBI".equals(updatedValue.get("serviceType"))){
-                        updatedValue.put("serviceType", "By Birth /Descent");
-                    }
                 }
             }
             catch(Exception e){
@@ -190,7 +191,6 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
             }
             
             if(updatedValue != null){
-                
                 for(String func : functionsListProfile){
         
                     switch (func) {
@@ -228,6 +228,7 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
     // static String extractId(Map<String, Object> updatedKey){
     //     return updatedKey.get('payload')
     // } 
+
 
     static void processBiometricList(Map<String, Object> updatedValue) {
         try {
