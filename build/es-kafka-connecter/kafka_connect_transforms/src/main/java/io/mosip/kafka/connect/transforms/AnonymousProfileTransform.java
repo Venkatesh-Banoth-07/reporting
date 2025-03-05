@@ -189,7 +189,11 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
             if(updatedValue != null){
                 Map<String, Object> profile = (Map<String, Object>) updatedValue.get("profile");
                 Object serviceType = profile.get("serviceType");   
-                if ("CBBI".equals(serviceType)) {    
+                if (serviceType == null) {       
+                     System.out.println("Anonymous profile detected, not modifying serviceType.");
+                 }
+ 
+                else if ("CBBI".equals(serviceType)) {    
                     profile.put("serviceType", "By Birth /Descent"); 
                     System.out.println("Updated serviceType: " + profile.get("serviceType")); 
                 }
