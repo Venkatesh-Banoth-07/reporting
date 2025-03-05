@@ -1,0 +1,24 @@
+{
+    "fieldVal": [
+        {
+            "code": "DLN",
+            "value": "Dual Citizenship"
+        },
+        {
+            "code": "CBREG",
+            "value": "By Registration"
+        },
+        {
+            "code": "NAT",
+            "value": "By Naturalisation"
+        },
+        {
+            "code": "CBBI",
+            "value": "By Birth /Descent"
+        },
+        {
+            "code": "CUAN",
+            "value": "Citizenship under the Article 9"
+        }
+    ]
+}
