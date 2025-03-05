@@ -180,6 +180,9 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
             try{
                 for(int j=0; j<profHierar.length ; j++){
                     updatedValue = (Map<String, Object>)updatedValue.get(profHierar[j]);
+                    if (updatedValue != null && "CBBI".equals(updatedValue.get("serviceType"))){
+                        updatedValue.put("serviceType", "By Birth /Descent");
+                    }
                 }
             }
             catch(Exception e){
@@ -187,17 +190,7 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
             }
             
             if(updatedValue != null){
-                Map<String, Object> profile = (Map<String, Object>) updatedValue.get("profile");
-                Object serviceType = profile.get("serviceType");   
-                if (serviceType == null) {       
-                     System.out.println("Anonymous profile detected, not modifying serviceType.");
-                 }
- 
-                else if ("CBBI".equals(serviceType)) {    
-                    profile.put("serviceType", "By Birth /Descent"); 
-                    System.out.println("Updated serviceType: " + profile.get("serviceType")); 
-                }
- 
+                
                 for(String func : functionsListProfile){
         
                     switch (func) {
