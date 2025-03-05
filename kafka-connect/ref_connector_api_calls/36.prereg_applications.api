@@ -32,7 +32,7 @@ curl \
           "key.converter": "org.apache.kafka.connect.storage.StringConverter",
           "value.converter": "org.apache.kafka.connect.json.JsonConverter",
           "key.converter.schemas.enable": "false",
-          "value.converter.schemas.enable": "false",
+          "value.converter.schemas.enable": "true",
 
           "behavior.on.null.values": "DELETE",
 
@@ -43,9 +43,7 @@ curl \
           "producer.metrics.recording.level": "INFO",
           "use.event.time.ordering": "true",
           "behavior.on.malformed.documents": "WARN",
-          "ignore.missing.fields": "true",
-          "pk.mode": "record_value",
-          "pk.fields": "application_id",
+          
 
           "transforms": "debezExtract,tsconvert01,tsconvert02,tsconvert03,tsSelect",
 
@@ -67,9 +65,8 @@ curl \
           "transforms.tsconvert03.input.type": "micro_sec",
 
           "transforms.tsSelect.type": "io.mosip.kafka.connect.transforms.TimestampSelector$Value",
-          "transforms.tsSelect.ts.order": "upd_dtimes,cr_dtimes",
+          "transforms.tsSelect.ts.order": "upd_dtimes,cr_dtimes,source_ts_ms",
           "transforms.tsSelect.output.field": "@timestamp_gen",
-          "transforms.tsSelect.default.field": "source_ts_ms",
-          "transforms.tsSelect.use.current.time": "true"
+          "transforms.tsSelect.default": "now"
       }
 }';
