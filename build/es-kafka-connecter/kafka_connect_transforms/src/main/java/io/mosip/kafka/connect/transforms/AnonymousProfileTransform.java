@@ -232,7 +232,7 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
         }
 
         
-        if (jsonMap == null || !jsonMapDist.containsKey("district") || jsonMapDist.get("district") == null) {     
+        if (jsonMapDist == null || !jsonMapDist.containsKey("district") || jsonMapDist.get("district") == null) {     
             throw new IllegalStateException("'district' is missing or null in the JSON file!"); }
           
         List<Map<String, String>> districtList = (List<Map<String, String>>) jsonMapDist.get("district");
@@ -245,9 +245,9 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
         .collect(Collectors.toMap(entry -> entry.get("code"), entry -> entry.get("value")));
  
 
-        
+
         Map<String, Object> updatedValueRoot = new HashMap<>(value);
-        // Map<String, Object> updatedKeyRoot = new HashMap<>(key);
+       
         String date = (String)Requirements.getNestedField(updatedValueRoot,"profile.date");
         for(int i=0; i<profileFieldsList.length ; i++){
             Map<String, Object> updatedValue = updatedValueRoot;
@@ -255,9 +255,7 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
             try{
                 for(int j=0; j<profHierar.length ; j++){
                     updatedValue = (Map<String, Object>)updatedValue.get(profHierar[j]);
-                    // if (updatedValue != null && "CBBI".equals(updatedValue.get("serviceType"))){
-                    //     updatedValue.put("serviceType", "By Birth /Descent");
-                    // }
+                    
                      if (updatedValue != null) {
                      String serviceType = (String) updatedValue.get("serviceType");
                      if (serviceType != null && fieldValueMap.containsKey(serviceType)) {
