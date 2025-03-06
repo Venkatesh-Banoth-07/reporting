@@ -186,6 +186,7 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
 
         ObjectMapper objectMapper = new ObjectMapper();
         File file = new File("/app/config/serviceType.json");
+        File filedistrict = new File("/app/config/district.json");
         
         Map<String, Object> jsonMap = new HashMap<>();
         try {
@@ -203,21 +204,48 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
 
         if (jsonMap == null || !jsonMap.containsKey("fieldVal") || jsonMap.get("fieldVal") == null) {     
             throw new IllegalStateException("'fieldVal' is missing or null in the JSON file!"); }
-
-
+            
         List<Map<String, String>> fieldValList = (List<Map<String, String>>) jsonMap.get("fieldVal");
 
         if (fieldValList == null || fieldValList.isEmpty()) {    
-             throw new IllegalStateException("fieldValList is empty or null!"); }
-        // final Map<String, Object> key = Requirements.requireMap(record.key(), PURPOSE);
+            throw new IllegalStateException("fieldValList is empty or null!"); }
 
-       // Map<String, String> fieldValueMap = fieldValList.stream().collect(Collectors.toMap(entry -> entry.get("code"), entry -> entry.get("value")));
-      
         Map<String, String> fieldValueMap = fieldValList.stream()
         .filter(entry -> entry.get("code") != null && entry.get("value") != null) // Avoid NPE
         .collect(Collectors.toMap(entry -> entry.get("code"), entry -> entry.get("value")));
+    
 
 
+
+        Map<String, Object> jsonMapDist = new HashMap<>();
+        try {
+            jsonMapDist = objectMapper.readValue(filedistrict, new TypeReference<Map<String, Object>>() {});
+        } catch (StreamReadException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (DatabindException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        
+        if (jsonMap == null || !jsonMapDist.containsKey("district") || jsonMapDist.get("district") == null) {     
+            throw new IllegalStateException("'district' is missing or null in the JSON file!"); }
+          
+        List<Map<String, String>> districtList = (List<Map<String, String>>) jsonMapDist.get("district");
+
+        if (districtList == null || districtList.isEmpty()) {    
+            throw new IllegalStateException("districtList is empty or null!"); }
+
+        Map<String, String> districtMap = districtList.stream()
+        .filter(entry -> entry.get("code") != null && entry.get("value") != null) // Avoid NPE
+        .collect(Collectors.toMap(entry -> entry.get("code"), entry -> entry.get("value")));
+ 
+
+        
         Map<String, Object> updatedValueRoot = new HashMap<>(value);
         // Map<String, Object> updatedKeyRoot = new HashMap<>(key);
         String date = (String)Requirements.getNestedField(updatedValueRoot,"profile.date");
@@ -235,7 +263,12 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
                      if (serviceType != null && fieldValueMap.containsKey(serviceType)) {
                      updatedValue.put("serviceType", fieldValueMap.get(serviceType));
                      }
+                     String dist_name = (String) updatedValue.get("district");
+                     if (dist_name != null && districtMap.containsKey(dist_name)) {
+                     updatedValue.put("dist_name", districtMap.get(dist_name));
+                    }
                 }
+                
                 }
             }
             catch(Exception e){
