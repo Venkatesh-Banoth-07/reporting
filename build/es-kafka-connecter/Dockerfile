@@ -4,3 +4,4 @@ RUN confluent-hub install --no-prompt confluentinc/kafka-connect-elasticsearch:1
 
 ADD ./jars /usr/share/java/my_transforms
 
+ADD build/es-kafka-connecter/kafka_connect_transforms/src/main/java/io/mosip/kafka/connect/transforms/serviceType.json /app/config/serviceType.json
