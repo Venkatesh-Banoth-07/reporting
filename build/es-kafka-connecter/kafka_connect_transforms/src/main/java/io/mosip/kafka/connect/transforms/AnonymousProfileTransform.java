@@ -263,7 +263,7 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
                      }
                      String dist_name = (String) updatedValue.get("district");
                      if (dist_name != null && districtMap.containsKey(dist_name)) {
-                     updatedValue.put("dist_name", districtMap.get(dist_name));
+                     updatedValue.put("district", districtMap.get(dist_name));
                     }
                 }
                 
