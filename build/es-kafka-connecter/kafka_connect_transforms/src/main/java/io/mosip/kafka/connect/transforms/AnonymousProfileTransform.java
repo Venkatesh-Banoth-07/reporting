@@ -26,6 +26,9 @@ import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 
+import com.fasterxml.jackson.core.exc.StreamReadException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DatabindException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -41,9 +44,15 @@ import java.util.Iterator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.File;
+import java.io.FileNotFoundException;
 
 public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> implements Transformation<R> {
 
@@ -171,9 +180,43 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
         }
     }
 
-    private R applySchemaless(R record) {
+
+    private R applySchemaless(R record)  {
         final Map<String, Object> value = Requirements.requireMap(operatingValue(record), PURPOSE);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        File file = new File("serviceType.json");
+        
+        Map<String, Object> jsonMap = new HashMap<>();
+        try {
+            jsonMap = objectMapper.readValue(file, new TypeReference<Map<String, Object>>() {});
+        } catch (StreamReadException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (DatabindException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        if (jsonMap == null || !jsonMap.containsKey("fieldVal") || jsonMap.get("fieldVal") == null) {     
+            throw new IllegalStateException("'fieldVal' is missing or null in the JSON file!"); }
+
+
+        List<Map<String, String>> fieldValList = (List<Map<String, String>>) jsonMap.get("fieldVal");
+
+        if (fieldValList == null || fieldValList.isEmpty()) {    
+             throw new IllegalStateException("fieldValList is empty or null!"); }
         // final Map<String, Object> key = Requirements.requireMap(record.key(), PURPOSE);
+
+       // Map<String, String> fieldValueMap = fieldValList.stream().collect(Collectors.toMap(entry -> entry.get("code"), entry -> entry.get("value")));
+      
+        Map<String, String> fieldValueMap = fieldValList.stream()
+        .filter(entry -> entry.get("code") != null && entry.get("value") != null) // Avoid NPE
+        .collect(Collectors.toMap(entry -> entry.get("code"), entry -> entry.get("value")));
+
 
         Map<String, Object> updatedValueRoot = new HashMap<>(value);
         // Map<String, Object> updatedKeyRoot = new HashMap<>(key);
@@ -184,6 +227,15 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
             try{
                 for(int j=0; j<profHierar.length ; j++){
                     updatedValue = (Map<String, Object>)updatedValue.get(profHierar[j]);
+                    // if (updatedValue != null && "CBBI".equals(updatedValue.get("serviceType"))){
+                    //     updatedValue.put("serviceType", "By Birth /Descent");
+                    // }
+                     if (updatedValue != null) {
+                     String serviceType = (String) updatedValue.get("serviceType");
+                     if (serviceType != null && fieldValueMap.containsKey(serviceType)) {
+                     updatedValue.put("serviceType", fieldValueMap.get(serviceType));
+                     }
+                }
                 }
             }
             catch(Exception e){
@@ -191,6 +243,7 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
             }
             
             if(updatedValue != null){
+                
                 for(String func : functionsListProfile){
         
                     switch (func) {
@@ -228,7 +281,6 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
     // static String extractId(Map<String, Object> updatedKey){
     //     return updatedKey.get('payload')
     // } 
-
 
     static void processBiometricList(Map<String, Object> updatedValue) {
         try {
