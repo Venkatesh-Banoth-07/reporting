@@ -185,7 +185,7 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
         final Map<String, Object> value = Requirements.requireMap(operatingValue(record), PURPOSE);
 
         ObjectMapper objectMapper = new ObjectMapper();
-        File file = new File("/usr/share/config/serviceType.json");
+        File file = new File("serviceType.json");
         
         Map<String, Object> jsonMap = new HashMap<>();
         try {
