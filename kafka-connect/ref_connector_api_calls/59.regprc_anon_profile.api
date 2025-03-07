@@ -49,7 +49,7 @@ curl \
           "use.event.time.ordering": "true",
 
 
-          "transforms": "ext1,ext2,tsconvert01,tsconvert02,tsconvert03,stringtojson01,latitudeJoin,longitudeJoin,join01,anonTransform,tsSelect",
+          "transforms": "ext1,ext2,tsconvert01,tsconvert02,tsconvert03,stringtojson01,latitudeJoin,longitudeJoin,join01,centerNameJoin,anonTransform,tsSelect",
 
           "transforms.ext1.type": "org.apache.kafka.connect.transforms.ExtractField$Value",
           "transforms.ext1.field": "payload",
@@ -97,6 +97,15 @@ curl \
           "transforms.join01.es.input.fields": "code,lang_code",
           "transforms.join01.es.output.field": "name",
           "transforms.join01.output.field": "documents_names",
+
+          "transforms.centerNameJoin.type": "io.mosip.kafka.connect.transforms.DynamicNewField$Value",
+          "transforms.centerNameJoin.es.index": '\"$DB_PREFIX_INDEX.master.registration_center\"',
+          "transforms.centerNameJoin.es.url": '\"$ES_URL\"',
+          "transforms.centerNameJoin.input.fields": "profile.enrollmentCenterId",
+          "transforms.centerNameJoin.input.default.values": "profile.enrollmentCenterId",
+          "transforms.centerNameJoin.es.input.fields": "id",
+          "transforms.centerNameJoin.es.output.field": "name",
+          "transforms.centerNameJoin.output.field": "registrationCenterName",
 
           "transforms.anonTransform.type": "io.mosip.kafka.connect.transforms.AnonymousProfileTransform$Value",
           "transforms.anonTransform.profiles.fields.list": "profile",
