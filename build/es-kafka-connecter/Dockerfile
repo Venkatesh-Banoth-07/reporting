@@ -7,3 +7,5 @@ ADD ./jars /usr/share/java/my_transforms
 ADD ./kafka_connect_transforms/src/main/java/io/mosip/kafka/connect/transforms/serviceType.json /app/config/serviceType.json
 
 ADD ./kafka_connect_transforms/src/main/java/io/mosip/kafka/connect/transforms/district.json /app/config/district.json
+
+ADD ./kafka_connect_transforms/src/main/java/io/mosip/kafka/connect/transforms/Tribe.json /app/config/Tribe.json
