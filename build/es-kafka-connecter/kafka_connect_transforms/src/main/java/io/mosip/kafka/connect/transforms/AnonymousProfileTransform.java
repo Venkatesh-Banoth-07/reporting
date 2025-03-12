@@ -294,7 +294,7 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
                      if (dist_name != null && districtMap.containsKey(dist_name)) {
                      updatedValue.put("district", districtMap.get(dist_name));
                      }
-                     String Tribe_name = (String) updatedValue.get("Tribe");
+                     String Tribe_name = (String) updatedValue.get("tribe");
                      if (Tribe_name != null && TribeMap.containsKey(Tribe_name)) {
                      updatedValue.put("tribe", TribeMap.get(Tribe_name));
                      }
