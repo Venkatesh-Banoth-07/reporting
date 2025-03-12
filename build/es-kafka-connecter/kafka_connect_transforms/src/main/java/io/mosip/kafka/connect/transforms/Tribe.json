@@ -1,0 +1,264 @@
+{
+    "Tribe": [
+        {
+            "code": "1",
+            "value": "Acholi"
+        },
+        {
+            "code": "2",
+            "value": "Aliba"
+        },
+        {
+            "code": "3",
+            "value": "Alur"
+        },
+        {
+            "code": "4",
+            "value": "Aringa"
+        },
+        {
+            "code": "5",
+            "value": "Baamba"
+        },
+        {
+            "code": "6",
+            "value": "Babukusu"
+        },
+        {
+            "code": "7",
+            "value": "Babwisi"
+        },
+        {
+            "code": "8",
+            "value": "Bafumbira"
+        },
+        {
+            "code": "9",
+            "value": "Baganda"
+        },
+        {
+            "code": "10",
+            "value": "Bagisu"
+        },
+        {
+            "code": "11",
+            "value": "Bagungu"
+        },
+        {
+            "code": "12",
+            "value": "Bagwe (part of Samia-Bugwe)"
+        },
+        {
+            "code": "13",
+            "value": "Bagwere"
+        },
+        {
+            "code": "14",
+            "value": "Bahehe"
+        },
+        {
+            "code": "15",
+            "value": "Bahororo"
+        },
+        {
+            "code": "16",
+            "value": "Bakenyi"
+        },
+        {
+            "code": "17",
+            "value": "Bakiga"
+        },
+        {
+            "code": "18",
+            "value": "Bakonzo"
+        },
+        {
+            "code": "19",
+            "value": "Banyabindi"
+        },
+        {
+            "code": "20",
+            "value": "Banyabutumbi"
+        },
+        {
+            "code": "21",
+            "value": "Banyankore"
+        },
+        {
+            "code": "22",
+            "value": "Banyara"
+        },
+        {
+            "code": "24",
+            "value": "Banyaruguru"
+        },
+        {
+            "code": "25",
+            "value": "Banyarwanda"
+        },
+        {
+            "code": "26",
+            "value": "Banyole"
+        },
+        {
+            "code": "27",
+            "value": "Banyoro"
+        },
+        {
+            "code": "28",
+            "value": "Baruli"
+        },
+        {
+            "code": "29",
+            "value": "Barundi"
+        },
+        {
+            "code": "30",
+            "value": "Basamia"
+        },
+        {
+            "code": "31",
+            "value": "Basoga"
+        },
+        {
+            "code": "32",
+            "value": "Basongora"
+        },
+        {
+            "code": "33",
+            "value": "Batagwenda"
+        },
+        {
+            "code": "34",
+            "value": "Batoro"
+        },
+        {
+            "code": "35",
+            "value": "Batuku"
+        },
+        {
+            "code": "36",
+            "value": "Batwa"
+        },
+        {
+            "code": "37",
+            "value": "Chope"
+        },
+        {
+            "code": "38",
+            "value": "Dodoth"
+        },
+        {
+            "code": "39",
+            "value": "Ethur (Acholi-Labwor)"
+        },
+        {
+            "code": "40",
+            "value": "Gimara"
+        },
+        {
+            "code": "41",
+            "value": "Ik (Teuso)"
+        },
+        {
+            "code": "42",
+            "value": "Iteso"
+        },
+        {
+            "code": "43",
+            "value": "Jie"
+        },
+        {
+            "code": "44",
+            "value": "Jonam"
+        },
+        {
+            "code": "45",
+            "value": "Jopadhola"
+        },
+        {
+            "code": "46",
+            "value": "Kakwa"
+        },
+        {
+            "code": "47",
+            "value": "Karimojong"
+        },
+        {
+            "code": "48",
+            "value": "Kebu (Okebu)"
+        },
+        {
+            "code": "49",
+            "value": "Kuku"
+        },
+        {
+            "code": "50",
+            "value": "Kumam"
+        },
+        {
+            "code": "51",
+            "value": "Langi"
+        },
+        {
+            "code": "52",
+            "value": "Lendu"
+        },
+        {
+            "code": "53",
+            "value": "Lugbara"
+        },
+        {
+            "code": "54",
+            "value": "Madi"
+        },
+        {
+            "code": "55",
+            "value": "Mening"
+        },
+        {
+            "code": "56",
+            "value": "Mvuba"
+        },
+        {
+            "code": "57",
+            "value": "Napore"
+        },
+        {
+            "code": "58",
+            "value": "Ngikutio"
+        },
+        {
+            "code": "59",
+            "value": "Nubi"
+        },
+        {
+            "code": "60",
+            "value": "Nyangia"
+        },
+        {
+            "code": "61",
+            "value": "Pokot"
+        },
+        {
+            "code": "62",
+            "value": "Reli"
+        },
+        {
+            "code": "63",
+            "value": "Sabiny"
+        },
+        {
+            "code": "64",
+            "value": "Shana"
+        },
+        {
+            "code": "65",
+            "value": "So (Tepeth)"
+        },
+        {
+            "code": "66",
+            "value": "Vonoma"
+        }
+    ]
+}
