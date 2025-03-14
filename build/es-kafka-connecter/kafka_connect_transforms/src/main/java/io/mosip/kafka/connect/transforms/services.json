@@ -1,0 +1,31 @@
+{
+    "services": [
+        {
+            "code": "NEW",
+            "value": "New Registrations"
+        },
+        {
+            "code": "RENEWAL",
+            "value": "Renewal of Card"
+        },
+        {
+            "code": "FIRSTID",
+            "value": "GetFirst ID"
+        },
+        {
+            "code": "LOST",
+            "value": "Lost/ Replacement of Card"
+        },
+        {
+            "code": "UPDATE",
+            "value": "Change of Particulars"
+        },
+        {
+            "code": "MIGRATOR",
+            "value": "Migration"
+        }
+    ]
+}
+
+
+ 
