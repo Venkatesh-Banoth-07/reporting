@@ -188,6 +188,7 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
         File file = new File("/app/config/serviceType.json");
         File filedistrict = new File("/app/config/district.json");
         File fileTribe = new File("/app/config/Tribe.json");
+        File fileServices = new File("/app/config/services.json");
         
         Map<String, Object> jsonMap = new HashMap<>();
         try {
@@ -272,6 +273,33 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
         Map<String, String> TribeMap = TribeList.stream()
         .filter(entry -> entry.get("code") != null && entry.get("value") != null) // Avoid NPE
         .collect(Collectors.toMap(entry -> entry.get("code"), entry -> entry.get("value")));
+
+        Map<String, Object> jsonMapServices = new HashMap<>();
+        try {
+            jsonMapServices = objectMapper.readValue(fileServices, new TypeReference<Map<String, Object>>() {});
+        } catch (StreamReadException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (DatabindException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        
+        if (jsonMapServices == null || !jsonMapServices.containsKey("services") || jsonMapServices.get("services") == null) {     
+            throw new IllegalStateException("'services' is missing or null in the JSON file!"); }
+          
+        List<Map<String, String>> ServicesList = (List<Map<String, String>>) jsonMapServices.get("services");
+
+        if (ServicesList == null || ServicesList.isEmpty()) {    
+            throw new IllegalStateException("ServicesList is empty or null!"); }
+
+        Map<String, String> ServicesMap = ServicesList.stream()
+        .filter(entry -> entry.get("code") != null && entry.get("value") != null) // Avoid NPE
+        .collect(Collectors.toMap(entry -> entry.get("code"), entry -> entry.get("value")));
  
 
 
@@ -297,6 +325,10 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
                      String Tribe_name = (String) updatedValue.get("tribe");
                      if (Tribe_name != null && TribeMap.containsKey(Tribe_name)) {
                      updatedValue.put("tribe", TribeMap.get(Tribe_name));
+                     }
+                     String Services_name = (String) updatedValue.get("service");
+                     if (Services_name != null && ServicesMap.containsKey(Services_name)) {
+                     updatedValue.put("service", ServicesMap.get(Services_name));
                      }
                 }
                 

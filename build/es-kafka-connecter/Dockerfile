@@ -9,3 +9,5 @@ ADD ./kafka_connect_transforms/src/main/java/io/mosip/kafka/connect/transforms/s
 ADD ./kafka_connect_transforms/src/main/java/io/mosip/kafka/connect/transforms/district.json /app/config/district.json
 
 ADD ./kafka_connect_transforms/src/main/java/io/mosip/kafka/connect/transforms/Tribe.json /app/config/Tribe.json
+
+ADD ./kafka_connect_transforms/src/main/java/io/mosip/kafka/connect/transforms/services.json /app/config/services.json
