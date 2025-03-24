@@ -11,3 +11,5 @@ ADD ./kafka_connect_transforms/src/main/java/io/mosip/kafka/connect/transforms/d
 ADD ./kafka_connect_transforms/src/main/java/io/mosip/kafka/connect/transforms/Tribe.json /app/config/Tribe.json
 
 ADD ./kafka_connect_transforms/src/main/java/io/mosip/kafka/connect/transforms/services.json /app/config/services.json
+
+ADD ./kafka_connect_transforms/src/main/java/io/mosip/kafka/connect/transforms/services.json /app/config/Gender.json

@@ -1,0 +1,20 @@
+{
+    "Gender": [
+        {
+            "code": "MLE",
+            "value": "Male"
+        },
+        {
+            "code": "FLE",
+            "value": "Female"
+        },
+        {
+            "code": "M",
+            "value": "Male"
+        },
+        {
+            "code": "F",
+            "value": "Female"
+        }
+    ]
+}
