@@ -189,6 +189,7 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
         File filedistrict = new File("/app/config/district.json");
         File fileTribe = new File("/app/config/Tribe.json");
         File fileServices = new File("/app/config/services.json");
+        File fileGender = new File("/app/config/Gender.json");
         
         Map<String, Object> jsonMap = new HashMap<>();
         try {
@@ -300,6 +301,33 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
         Map<String, String> ServicesMap = ServicesList.stream()
         .filter(entry -> entry.get("code") != null && entry.get("value") != null) // Avoid NPE
         .collect(Collectors.toMap(entry -> entry.get("code"), entry -> entry.get("value")));
+
+        Map<String, Object> jsonMapGender = new HashMap<>();
+        try {
+            jsonMapGender = objectMapper.readValue(fileGender, new TypeReference<Map<String, Object>>() {});
+        } catch (StreamReadException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (DatabindException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        
+        if (jsonMapGender == null || !jsonMapGender.containsKey("Gender") || jsonMapGender.get("Gender") == null) {     
+            throw new IllegalStateException("'Gender' is missing or null in the JSON file!"); }
+          
+        List<Map<String, String>> GenderList = (List<Map<String, String>>) jsonMapGender.get("Gender");
+
+        if (GenderList == null || GenderList.isEmpty()) {    
+            throw new IllegalStateException("GenderList is empty or null!"); }
+
+        Map<String, String> GenderMap = GenderList.stream()
+        .filter(entry -> entry.get("code") != null && entry.get("value") != null) // Avoid NPE
+        .collect(Collectors.toMap(entry -> entry.get("code"), entry -> entry.get("value")));
  
 
 
@@ -329,6 +357,10 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
                      String Services_name = (String) updatedValue.get("service");
                      if (Services_name != null && ServicesMap.containsKey(Services_name)) {
                      updatedValue.put("service", ServicesMap.get(Services_name));
+                     }
+                     String Gender_name = (String) updatedValue.get("gender");
+                     if (Gender_name != null && GenderMap.containsKey(Gender_name)) {
+                     updatedValue.put("gender", GenderMap.get(Gender_name));
                      }
                 }
                 
