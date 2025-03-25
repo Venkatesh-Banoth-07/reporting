@@ -12,4 +12,4 @@ ADD ./kafka_connect_transforms/src/main/java/io/mosip/kafka/connect/transforms/T
 
 ADD ./kafka_connect_transforms/src/main/java/io/mosip/kafka/connect/transforms/services.json /app/config/services.json
 
-ADD ./kafka_connect_transforms/src/main/java/io/mosip/kafka/connect/transforms/services.json /app/config/Gender.json
+ADD ./kafka_connect_transforms/src/main/java/io/mosip/kafka/connect/transforms/Gender.json /app/config/Gender.json
