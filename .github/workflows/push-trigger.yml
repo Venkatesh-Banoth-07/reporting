@@ -11,6 +11,7 @@ on:
       - develop
       - MOS-3162
       - tf_nira_dev
+      - debez_connector
     paths:
       - 'build/**'
       - 'scripts/**'
