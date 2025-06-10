@@ -45,7 +45,7 @@ curl \
           "behavior.on.malformed.documents": "WARN",
           
 
-          "transforms": "debezExtract,tsconvert01,tsconvert02,tsconvert03,tsSelect",
+          "transforms": "debezExtract,tsconvert01,tsconvert02,tsconvert03,enrichFromH,tsSelect",
 
           "transforms.debezExtract.type": "io.debezium.transforms.ExtractNewRecordState",
           "transforms.debezExtract.delete.handling.mode": "drop",
@@ -63,6 +63,12 @@ curl \
           "transforms.tsconvert03.type": "io.mosip.kafka.connect.transforms.TimestampConverterAdv$Value",
           "transforms.tsconvert03.field": "upd_dtimes",
           "transforms.tsconvert03.input.type": "micro_sec",
+
+          "transforms.enrichFromH.type": "io.mosip.kafka.connect.transforms.DynamicNewField$Value",
+          "transforms.enrichFromH.es.url": '\"$ES_URL\"',
+          "transforms.enrichFromH.index": '\"$DB_PREFIX_INDEX.regprc.mvs_application_h\"',
+          "transforms.enrichFromH.input.fields": "reg_id,stage",
+          "transforms.enrichFromH.output.field": "stage_h"
 
           "transforms.tsSelect.type": "io.mosip.kafka.connect.transforms.TimestampSelector$Value",
           "transforms.tsSelect.ts.order": "cr_dtimes,upd_dtimes,source_ts_ms",
