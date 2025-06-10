@@ -28,6 +28,7 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.Header;
@@ -77,7 +78,7 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
 
         // RestHighLevelClient esClient;
         CloseableHttpClient hClient;
-        HttpGet hGet;
+        //HttpGet hGet;
 
         ESQueryConfig(String type, String esUrl, String esIndex, String[] esInputFields, String esOutputField, String[] inputFields, String[] inputDefaultValues,String outputField) {
             super(type,inputFields,inputDefaultValues,outputField,Schema.STRING_SCHEMA);
@@ -89,8 +90,8 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
 
             // esClient = new RestHighLevelClient(RestClient.builder(HttpHost.create(this.esUrl)));
             hClient = HttpClients.createDefault();
-            hGet = new HttpGet(this.esUrl+"/"+this.esIndex+"/_search");
-            hGet.setHeader("Content-type", "application/json");
+            //hGet = new HttpGet(this.esUrl+"/"+this.esIndex+"/_search");
+            //hGet.setHeader("Content-type", "application/json");
         }
 
         Object makeQuery(List<Object> inputValues){
@@ -109,35 +110,42 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
             }
             requestJson += "]}}}";
             
-            hGet.setEntity(new StringEntity(requestJson));
+            //hGet.setEntity(new StringEntity(requestJson));
 
             JSONObject responseJson;
 
             final int MAX_RETRIES = 5;
             for(int i=1; i <= MAX_RETRIES; i++){
-                try(CloseableHttpResponse hResponse = hClient.execute(hGet)){
-                    HttpEntity entity = hResponse.getEntity();
-                    String jsonString = EntityUtils.toString(entity);
-                    responseJson = new JSONObject(jsonString);
-                }
-                catch(Exception e){
-                    if(i==MAX_RETRIES) return "Error occured while making the query : " + e.getMessage();
-                    else continue;
-                }
+                try {
+                    HttpPost hPost = new HttpPost(this.esUrl + "/" + this.esIndex + "/_search");
+                    hPost.setHeader("Content-type", "application/json");
+                    hPost.setEntity(new StringEntity(requestJson));
 
-                // if(responseJson.getJSONObject("hits").getJSONArray("hits").length()!=0){
-                try{
-                    // get the top hit .. error handling not done properly
-                    return responseJson.getJSONObject("hits").getJSONArray("hits").getJSONObject(0).getJSONObject("_source").getString(esOutputField);
-                }
-                catch(JSONException je){
-                    if(i==MAX_RETRIES) return "Error: No hits found";
-                    else continue;
+                    try (CloseableHttpResponse hResponse = hClient.execute(hPost)) {
+                        int statusCode = hResponse.getCode();
+                        if (statusCode != 200) {
+                            return "Unexpected response from Elasticsearch: " + statusCode;
+                        }
+
+                        HttpEntity entity = hResponse.getEntity();
+                        String jsonString = EntityUtils.toString(entity);
+                        responseJson = new JSONObject(jsonString);
+                    }
+
+                    return responseJson.getJSONObject("hits")
+                                    .getJSONArray("hits")
+                                    .getJSONObject(0)
+                                    .getJSONObject("_source")
+                                    .getString(esOutputField);
+                } catch (JSONException je) {
+                    if (i == MAX_RETRIES) return "Error: No hits found";
+                } catch (Exception e) {
+                    if (i == MAX_RETRIES) return "Error occurred while making the query: " + e.getMessage();
                 }
             }
-            // control shouldn't reach here .. it shouldve thrown exception before or returned
-            return "EMPTY";
 
+            return "EMPTY";// control shouldn't reach here .. it shouldve thrown exception before or returned
+                
         }
 
         List<Object> makeQueryForList(List<Object> inputValues){
