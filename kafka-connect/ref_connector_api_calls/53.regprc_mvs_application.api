@@ -65,8 +65,8 @@ curl \
           "transforms.tsconvert03.input.type": "micro_sec",
 
           "transforms.enrichFromH.type": "io.mosip.kafka.connect.transforms.DynamicNewField$Value",
-          "transforms.enrichFromH.es.url": '\"$ES_URL\"',
-          "transforms.enrichFromH.index": '\"$DB_PREFIX_INDEX.regprc.mvs_application_h\"',
+          "transforms.enrichFromH.es.index": "$DB_PREFIX_INDEX.regprc.mvs_application_h",
+          "transforms.enrichFromH.es.url": "$ES_URL",
           "transforms.enrichFromH.input.fields": "reg_id",
           "transforms.enrichFromH.input.default.values": "reg_id",
           "transforms.enrichFromH.es.input.fields": "reg_id",
