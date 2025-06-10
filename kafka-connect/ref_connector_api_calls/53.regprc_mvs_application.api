@@ -68,7 +68,8 @@ curl \
           "transforms.enrichFromH.es.url": '\"$ES_URL\"',
           "transforms.enrichFromH.index": '\"$DB_PREFIX_INDEX.regprc.mvs_application_h\"',
           "transforms.enrichFromH.input.fields": "reg_id,stage",
-          "transforms.enrichFromH.output.field": "stage_h"
+          "transforms.enrichFromH.input.default.values": "UNKNOWN,UNKNOWN",
+          "transforms.enrichFromH.output.field": "stage_h",
 
           "transforms.tsSelect.type": "io.mosip.kafka.connect.transforms.TimestampSelector$Value",
           "transforms.tsSelect.ts.order": "cr_dtimes,upd_dtimes,source_ts_ms",
