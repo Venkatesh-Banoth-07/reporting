@@ -6,12 +6,12 @@
 #DB_PREFIX_INDEX=
 #ES_URL=
 
-CONN_NAME="audit_$DB_PREFIX_INDEX"; # change this.. give unique name for each db/table
+CONN_NAME="master_zone_$DB_PREFIX_INDEX"; # change this.. give unique name for each db/table
 
 ES_CONN_URL='es-connect:8083'; # needn't change .. this is the ES-connector service name
 
-DB_NAME='mosip_audit'; # change this
-DB_TABLES='audit.app_audit_log'
+DB_NAME='mosip_master'; # change this
+DB_TABLES='master.zone'
 ES_INDICES=$(echo $DB_TABLES | sed -E "s/([^,]+)/$DB_PREFIX_INDEX.\1/g")
 
 curl \
@@ -39,6 +39,15 @@ curl \
 
           "behavior.on.null.values": "DELETE",
 
+          "errors.tolerance": "all",
+          "errors.log.enable": "true",
+          "errors.log.include.messages": "true",
+          "behavior.on.version.conflict": "ignore",
+          "producer.metrics.recording.level": "INFO",
+          "use.event.time.ordering": "true",
+          "behavior.on.malformed.documents": "WARN",
+          
+
           "transforms": "debezExtract,tsconvert01,tsconvert02,tsconvert03,tsSelect",
 
           "transforms.debezExtract.type": "io.debezium.transforms.ExtractNewRecordState",
@@ -51,15 +60,16 @@ curl \
           "transforms.tsconvert01.field": "source_ts_ms",
 
           "transforms.tsconvert02.type": "io.mosip.kafka.connect.transforms.TimestampConverterAdv$Value",
-          "transforms.tsconvert02.field": "action_dtimes",
+          "transforms.tsconvert02.field": "cr_dtimes",
           "transforms.tsconvert02.input.type": "micro_sec",
 
           "transforms.tsconvert03.type": "io.mosip.kafka.connect.transforms.TimestampConverterAdv$Value",
-          "transforms.tsconvert03.field": "log_dtimes",
+          "transforms.tsconvert03.field": "upd_dtimes",
           "transforms.tsconvert03.input.type": "micro_sec",
 
           "transforms.tsSelect.type": "io.mosip.kafka.connect.transforms.TimestampSelector$Value",
-          "transforms.tsSelect.ts.order": "log_dtimes,action_dtimes",
-          "transforms.tsSelect.output.field": "@timestamp_gen"
+          "transforms.tsSelect.ts.order": "cr_dtimes,upd_dtimes,source_ts_ms",
+          "transforms.tsSelect.output.field": "@timestamp_gen",
+          "transforms.tsSelect.default": "now"
       }
 }';
