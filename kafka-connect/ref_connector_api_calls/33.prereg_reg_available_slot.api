@@ -33,9 +33,6 @@ curl \
           "value.converter": "org.apache.kafka.connect.json.JsonConverter",
           "key.converter.schemas.enable": "false",
           "value.converter.schemas.enable": "true",
-          "connection.timeout.ms": "10000",
-          "read.timeout.ms": "10000",
-          "flush.timeout.ms": "15000",
 
           "behavior.on.null.values": "DELETE",
 
