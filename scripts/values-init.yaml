@@ -15,7 +15,7 @@ debezium_connectors:
   # existingConfigMap:
   dbs:
   - name: "mosip_master"
-    tables: "master.doc_type,master.registration_center"
+    tables: "master.doc_type,master.registration_center,master.zone,master.machine_master"
   - name: "mosip_audit"
     tables: "audit.app_audit_log"
   - name: "mosip_prereg"
