@@ -1,7 +1,9 @@
 package io.mosip.kafka.connect.transforms;
 
 import org.apache.kafka.connect.connector.ConnectRecord;
+import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.transforms.Transformation;
 import org.apache.kafka.common.config.ConfigDef;
@@ -33,7 +35,8 @@ public class RefIdSplitter<R extends ConnectRecord<R>> implements Transformation
         if (!(record.value() instanceof Struct)) return record;
 
         Struct value = (Struct) record.value();
-        Schema schema = record.valueSchema();
+        //Schema schema = record.valueSchema();
+        Schema originalSchema = record.valueSchema();
 
         String refId = value.getString(inputField);
         if (refId == null || !refId.contains("_")) return record;
@@ -44,21 +47,32 @@ public class RefIdSplitter<R extends ConnectRecord<R>> implements Transformation
         String regcntrId = parts[0];
         String machineId = parts[1];
 
-        Struct updated = new Struct(schema);
-        for (org.apache.kafka.connect.data.Field field : schema.fields()) {
-            updated.put(field, value.get(field));
+        SchemaBuilder builder = SchemaBuilder.struct().name(originalSchema.name() + "_refSplit");
+        for (Field field : originalSchema.fields()) {
+            builder.field(field.name(), field.schema());
         }
 
-        updated.put(regcntrField, regcntrId);
-        updated.put(machineField, machineId);
+        // Add new fields to schema
+        builder.field(regcntrField, Schema.OPTIONAL_STRING_SCHEMA);
+        builder.field(machineField, Schema.OPTIONAL_STRING_SCHEMA);
+
+        Schema updatedSchema  = builder.build();
+
+        Struct updatedValue  = new Struct(updatedSchema);
+        for (Field field : originalSchema.fields()) {
+            updatedValue.put(field.name(), value.get(field));
+        }
+
+        updatedValue.put(regcntrField, regcntrId);
+        updatedValue.put(machineField, machineId);
 
         return record.newRecord(
             record.topic(),
             record.kafkaPartition(),
             record.keySchema(),
             record.key(),
-            schema,
-            updated,
+            updatedSchema,
+            updatedValue,
             record.timestamp()
         );
     }

@@ -36,6 +36,14 @@ curl \
 
           "behavior.on.null.values": "DELETE",
 
+          "errors.tolerance": "all",
+          "errors.log.enable": "true",
+          "errors.log.include.messages": "true",
+          "behavior.on.version.conflict": "ignore",
+          "producer.metrics.recording.level": "INFO",
+          "use.event.time.ordering": "true",
+          "behavior.on.malformed.documents": "WARN",
+
           "transforms": "debezExtract,tsconvert01,tsconvert02,tsconvert03,tsconvert04,refSplit,enrichFromM,enrichFromZ,tsSelect",
 
           "transforms.debezExtract.type": "io.debezium.transforms.ExtractNewRecordState",
@@ -68,6 +76,7 @@ curl \
           "transforms.enrichFromM.es.url": "$ES_URL",
           "transforms.enrichFromM.input.fields": "machine_id",
           "transforms.enrichFromM.es.input.fields": "id",
+          "transforms.enrichFromM.input.default.values": "id",
           "transforms.enrichFromM.es.output.field": "zone_code",
           "transforms.enrichFromM.output.field": "zone_code",
 
@@ -75,6 +84,7 @@ curl \
           "transforms.enrichFromZ.es.url": "$ES_URL",
           "transforms.enrichFromZ.es.index": "$DB_PREFIX_INDEX.master.zone",
           "transforms.enrichFromZ.input.fields": "zone_code",
+          "transforms.enrichFromZ.input.default.values": "zone_code",
           "transforms.enrichFromZ.es.input.fields": "code",
           "transforms.enrichFromZ.es.output.field": "name",
           "transforms.enrichFromZ.output.field": "zone_name",
