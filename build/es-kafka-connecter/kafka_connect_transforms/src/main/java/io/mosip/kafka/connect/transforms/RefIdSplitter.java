@@ -74,4 +74,10 @@ public class RefIdSplitter<R extends ConnectRecord<R>> implements Transformation
     public static final ConfigDef CONFIG_DEF = new ConfigDef()
         .define("input.field", ConfigDef.Type.STRING, ConfigDef.Importance.HIGH, "The field containing ref_id (e.g., 'ref_id')")
         .define("output.fields", ConfigDef.Type.STRING, ConfigDef.Importance.HIGH, "Comma-separated output fields like 'regcntr_id,machine_id'");
+
+    public static class Value<R extends ConnectRecord<R>> extends RefIdSplitter<R> {
+        public Value() {
+            super();
+        }
+    }
 }
