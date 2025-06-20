@@ -35,8 +35,10 @@ import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 
+
 import org.json.JSONObject;
 import org.json.JSONException;
+import org.json.JSONArray;
 
 import java.util.Arrays;
 import java.util.List;
@@ -96,19 +98,21 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
 
         Object makeQuery(List<Object> inputValues){
             if(inputValues.size()!=inputFields.length){
-                return "Cant get all values for the mentioned " + INPUT_FIELDS_CONFIG + ". Given " + INPUT_FIELDS_CONFIG + " : " + Arrays.toString(inputFields)+ " " + inputValues;
+                System.err.println("Mismatch in input values. Expected: " + Arrays.toString(inputFields) + ", Got: " + inputValues);
+                return null;
             }
             else if(inputValues.size()==0){
                 return null;
             }
 
-            String requestJson = "{\"query\": { \"bool\": { \"must\": [";
-
+            StringBuilder requestJson = new StringBuilder("{\"query\": { \"bool\": { \"must\": [");
             for(int i=0; i<inputFields.length; i++){
-                if(i!=0)requestJson+=",";
-                requestJson += "{\"term\": {\"" + esInputFields[i] + ".keyword\": \"" + inputValues.get(i) + "\"}}";
+                if (i != 0) requestJson.append(",");
+                 requestJson.append("{\"term\": {\"")
+                   .append(esInputFields[i].trim()).append(".keyword")
+                   .append("\": \"").append(inputValues.get(i).toString().trim()).append("\"}}");
             }
-            requestJson += "]}}}";
+            requestJson.append("]}}}");
             
             //hGet.setEntity(new StringEntity(requestJson));
 
@@ -119,32 +123,40 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                 try {
                     HttpPost hPost = new HttpPost(this.esUrl + "/" + this.esIndex + "/_search");
                     hPost.setHeader("Content-type", "application/json");
-                    hPost.setEntity(new StringEntity(requestJson));
+                    hPost.setEntity(new StringEntity(requestJson.toString()));
 
                     try (CloseableHttpResponse hResponse = hClient.execute(hPost)) {
                         int statusCode = hResponse.getCode();
                         if (statusCode != 200) {
-                            return "Unexpected response from Elasticsearch: " + statusCode;
+                            System.err.println("ES response code: " + statusCode + " on attempt " + i);
+                            continue;
                         }
 
                         HttpEntity entity = hResponse.getEntity();
                         String jsonString = EntityUtils.toString(entity);
                         responseJson = new JSONObject(jsonString);
+
+                        JSONArray hits = responseJson.getJSONObject("hits").getJSONArray("hits");
+
+                        if (hits.length() == 0) {
+                            System.out.println("No document found for input: " + inputValues);
+                            return null;  // <--- return null or a default like "NOT_AVAILABLE"
+                        }
+
+                        return hits.getJSONObject(0).getJSONObject("_source").optString(esOutputField, null);
                     }
 
-                    return responseJson.getJSONObject("hits")
-                                    .getJSONArray("hits")
-                                    .getJSONObject(0)
-                                    .getJSONObject("_source")
-                                    .getString(esOutputField);
+                    
                 } catch (JSONException je) {
-                    if (i == MAX_RETRIES) return "Error: No hits found";
+                    System.err.println("JSON error on attempt " + i + ": " + je.getMessage());
+                    if (i == MAX_RETRIES) return null;
                 } catch (Exception e) {
-                    if (i == MAX_RETRIES) return "Error occurred while making the query: " + e.getMessage();
+                    System.err.println("Exception during ES query on attempt " + i + ": " + e.getMessage());
+                    if (i == MAX_RETRIES) return null;
                 }
             }
 
-            return "EMPTY";// control shouldn't reach here .. it shouldve thrown exception before or returned
+            return null;// control shouldn't reach here .. it shouldve thrown exception before or returned
                 
         }
 
