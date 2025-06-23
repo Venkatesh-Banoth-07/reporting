@@ -28,6 +28,7 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.Header;
@@ -35,6 +36,7 @@ import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 
 import org.json.JSONObject;
+import org.json.JSONArray;
 import org.json.JSONException;
 
 import java.util.Arrays;
@@ -93,52 +95,119 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
             hGet.setHeader("Content-type", "application/json");
         }
 
-        Object makeQuery(List<Object> inputValues){
-            if(inputValues.size()!=inputFields.length){
-                return "Cant get all values for the mentioned " + INPUT_FIELDS_CONFIG + ". Given " + INPUT_FIELDS_CONFIG + " : " + Arrays.toString(inputFields)+ " " + inputValues;
-            }
-            else if(inputValues.size()==0){
-                return null;
-            }
+        // Object makeQuery(List<Object> inputValues){
+        //     if(inputValues.size()!=inputFields.length){
+        //         return "NOT_AVAILABLE";
+        //     }
+        //     else if(inputValues.size()==0){
+        //         return "NOT_AVAILABLE";
+        //     }
 
-            String requestJson = "{\"query\": { \"bool\": { \"must\": [";
+        //     StringBuilder requestJson = new StringBuilder("{\"query\": { \"bool\": { \"must\": [");
 
-            for(int i=0; i<inputFields.length; i++){
-                if(i!=0)requestJson+=",";
-                requestJson += "{\"term\": {\"" + esInputFields[i] + ".keyword\": \"" + inputValues.get(i) + "\"}}";
-            }
-            requestJson += "]}}}";
+        //     for (int i = 0; i < inputFields.length; i++) {
+        //         if (i != 0) requestJson.append(",");
+        //         requestJson.append("{\"term\": {\"")
+        //             .append(esInputFields[i].trim()).append(".keyword")
+        //             .append("\": \"").append(inputValues.get(i).toString().trim()).append("\"}}");
+        //     }
+        //     requestJson.append("]}}}");
             
-            hGet.setEntity(new StringEntity(requestJson));
+
+        //     JSONObject responseJson;
+
+        //     final int MAX_RETRIES = 5;
+        //     for(int i=1; i <= MAX_RETRIES; i++)
+        //     {
+        //         try {
+        //             HttpPost hPost = new HttpPost(this.esUrl + "/" + this.esIndex + "/_search");
+        //             hPost.setHeader("Content-type", "application/json");
+        //             hPost.setEntity(new StringEntity(requestJson.toString()));
+
+        //             try (CloseableHttpResponse hResponse = hClient.execute(hPost)) {
+        //                 int statusCode = hResponse.getCode();
+        //                 if (statusCode != 200) {
+        //                     System.err.println("ES response code: " + statusCode + " on attempt " + i);
+        //                     continue;
+        //                 }
+
+        //                 HttpEntity entity = hResponse.getEntity();
+        //                 String jsonString = EntityUtils.toString(entity);
+        //                 responseJson = new JSONObject(jsonString);
+
+        //                 JSONArray hits = responseJson.getJSONObject("hits").getJSONArray("hits");
+
+        //                 if (hits.length() == 0) {
+        //                     System.out.println("No document found for input: " + inputValues);
+        //                     return "NOT_AVAILABLE";
+        //                 }
+
+        //                 return hits.getJSONObject(0).getJSONObject("_source").optString(esOutputField, "NOT_AVAILABLE");
+        //             }  
+        //         }          
+        //     }
+        //     // control shouldn't reach here .. it shouldve thrown exception before or returned
+        //     return "EMPTY";
+
+        // }
+        Object makeQuery(List<Object> inputValues) {
+            if (inputValues.size() != inputFields.length) {
+                System.err.println("Mismatch in input values. Expected: " + Arrays.toString(inputFields) + ", Got: " + inputValues);
+                return "NOT_AVAILABLE";
+            } else if (inputValues.size() == 0) {
+                return "NOT_AVAILABLE";
+            }
+
+            StringBuilder requestJson = new StringBuilder("{\"query\": { \"bool\": { \"must\": [");
+            for (int i = 0; i < inputFields.length; i++) {
+                if (i != 0) requestJson.append(",");
+                requestJson.append("{\"term\": {\"")
+                    .append(esInputFields[i].trim()).append(".keyword")
+                    .append("\": \"").append(inputValues.get(i).toString().trim()).append("\"}}");
+            }
+            requestJson.append("]}}}");
 
             JSONObject responseJson;
-
             final int MAX_RETRIES = 5;
-            for(int i=1; i <= MAX_RETRIES; i++){
-                try(CloseableHttpResponse hResponse = hClient.execute(hGet)){
-                    HttpEntity entity = hResponse.getEntity();
-                    String jsonString = EntityUtils.toString(entity);
-                    responseJson = new JSONObject(jsonString);
-                }
-                catch(Exception e){
-                    if(i==MAX_RETRIES) return "Error occured while making the query : " + e.getMessage();
-                    else continue;
-                }
+            for (int i = 1; i <= MAX_RETRIES; i++) {
+                try {
+                    HttpPost hPost = new HttpPost(this.esUrl + "/" + this.esIndex + "/_search");
+                    hPost.setHeader("Content-type", "application/json");
+                    hPost.setEntity(new StringEntity(requestJson.toString()));
 
-                // if(responseJson.getJSONObject("hits").getJSONArray("hits").length()!=0){
-                try{
-                    // get the top hit .. error handling not done properly
-                    return responseJson.getJSONObject("hits").getJSONArray("hits").getJSONObject(0).getJSONObject("_source").getString(esOutputField);
-                }
-                catch(JSONException je){
-                    if(i==MAX_RETRIES) return "Error: No hits found";
-                    else continue;
+                    try (CloseableHttpResponse hResponse = hClient.execute(hPost)) {
+                        int statusCode = hResponse.getCode();
+                        if (statusCode != 200) {
+                            System.err.println("ES response code: " + statusCode + " on attempt " + i);
+                            continue;
+                        }
+
+                        HttpEntity entity = hResponse.getEntity();
+                        String jsonString = EntityUtils.toString(entity);
+                        responseJson = new JSONObject(jsonString);
+
+                        JSONArray hits = responseJson.getJSONObject("hits").getJSONArray("hits");
+
+                        if (hits.length() == 0) {
+                            System.out.println("No document found for input: " + inputValues);
+                            return "NOT_AVAILABLE";
+                        }
+
+                        return hits.getJSONObject(0).getJSONObject("_source").optString(esOutputField, "NOT_AVAILABLE");
+                    }
+
+                } catch (JSONException je) {
+                    System.err.println("JSON error on attempt " + i + ": " + je.getMessage());
+                    if (i == MAX_RETRIES) return "NOT_AVAILABLE";
+                } catch (Exception e) {
+                    System.err.println("Exception during ES query on attempt " + i + ": " + e.getMessage());
+                    if (i == MAX_RETRIES) return "NOT_AVAILABLE";
                 }
             }
-            // control shouldn't reach here .. it shouldve thrown exception before or returned
-            return "EMPTY";
 
+            return "NOT_AVAILABLE"; // fallback
         }
+
 
         List<Object> makeQueryForList(List<Object> inputValues){
 
