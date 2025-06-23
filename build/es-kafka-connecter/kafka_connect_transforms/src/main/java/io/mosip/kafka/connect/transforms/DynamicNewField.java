@@ -45,7 +45,9 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.io.IOException;
 
 public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Transformation<R> {
@@ -97,56 +99,94 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
         }
 
         Object makeQuery(List<Object> inputValues) {
-            if(inputValues.size()!=inputFields.length){
-                return "Cant get all values for the mentioned " + INPUT_FIELDS_CONFIG + ". Given " + INPUT_FIELDS_CONFIG + " : " + Arrays.toString(inputFields)+ " " + inputValues;
-            }
-            else if(inputValues.size()==0){
-                return null;
-            }
 
-            // Build ES query
-            String requestJson = "{\"query\": { \"bool\": { \"must\": [";
+    if (inputValues.size() != inputFields.length) {
 
-            for(int i=0; i<inputFields.length; i++){
-                if(i!=0)requestJson+=",";
-                requestJson += "{\"term\": {\"" + esInputFields[i] + ".keyword\": \"" + inputValues.get(i) + "\"}}";
-            }
-            requestJson += "]}}}";
+        return "Cant get all values for the mentioned " + INPUT_FIELDS_CONFIG + ". Given " + INPUT_FIELDS_CONFIG + " : " + Arrays.toString(inputFields) + " " + inputValues;
 
-            JSONObject responseJson;
+    } else if (inputValues.size() == 0) {
 
-            final int MAX_RETRIES = 5;
-            for (int i = 1; i <= MAX_RETRIES; i++) {
-                try {
-                    HttpPost hPost = new HttpPost(this.esUrl + "/" + this.esIndex + "/_search");
-                    hPost.setHeader("Content-type", "application/json");
-                    hPost.setEntity(new StringEntity(requestJson));
+        return null;
 
-                    try (CloseableHttpResponse hResponse = hClient.execute(hPost)) {
-                        int statusCode = hResponse.getCode();
-                        if (statusCode != 200) {
-                            return "Unexpected response from Elasticsearch: " + statusCode;
-                        }
+    }
+ 
+    // Build ES query
 
-                        HttpEntity entity = hResponse.getEntity();
-                        String jsonString = EntityUtils.toString(entity);
-                        responseJson = new JSONObject(jsonString);
-                    }
+    String requestJson =
 
-                    return responseJson.getJSONObject("hits")
-                                    .getJSONArray("hits")
-                                    .getJSONObject(0)
-                                    .getJSONObject("_source")
-                                    .getString(esOutputField);
-                } catch (JSONException je) {
-                    if (i == MAX_RETRIES) return "Error: No hits found";
-                } catch (Exception e) {
-                    if (i == MAX_RETRIES) return "Error occurred while making the query: " + e.getMessage();
+        "{ \"query\": { \"bool\": { \"must\": [ " +
+
+        "{ \"term\": { \"" + esInputFields[0] + ".keyword\": \"" + inputValues.get(0) + "\" } } " +
+
+        "] } }, " +
+
+        "\"sort\": [ { \"cr_dtimes\": { \"order\": \"desc\" } } ], " +
+
+        "\"size\": 1 }";
+ 
+    JSONObject responseJson;
+
+    final int MAX_RETRIES = 5;
+ 
+    for (int i = 1; i <= MAX_RETRIES; i++) {
+
+        try {
+
+            HttpPost hPost = new HttpPost(this.esUrl + "/" + this.esIndex + "/_search");
+
+            hPost.setHeader("Content-type", "application/json");
+
+            hPost.setEntity(new StringEntity(requestJson));
+ 
+            try (CloseableHttpResponse hResponse = hClient.execute(hPost)) {
+
+                int statusCode = hResponse.getCode();
+
+                if (statusCode != 200) {
+
+                    return null; // Skip if ES fails
+
                 }
+ 
+                HttpEntity entity = hResponse.getEntity();
+
+                String jsonString = EntityUtils.toString(entity);
+
+                responseJson = new JSONObject(jsonString);
+ 
+                JSONArray hits = responseJson.getJSONObject("hits").getJSONArray("hits");
+
+                if (hits.length() == 0) {
+
+                    return null; // No match found — skip record
+
+                }
+ 
+                return hits.getJSONObject(0)
+
+                           .getJSONObject("_source")
+
+                           .getString(esOutputField);
+
             }
 
-            return "EMPTY";// control shouldn't reach here .. it shouldve thrown exception before or returned
+        } catch (JSONException je) {
+
+            if (i == MAX_RETRIES) return null;
+
+        } catch (Exception e) {
+
+            if (i == MAX_RETRIES) return null;
+
         }
+
+    }
+ 
+    return null;
+
+}
+
+ 
         
 
         // Object makeQuery(List<Object> inputValues){
