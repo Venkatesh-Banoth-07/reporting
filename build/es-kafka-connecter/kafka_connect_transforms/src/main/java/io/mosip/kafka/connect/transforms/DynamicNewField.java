@@ -96,30 +96,29 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
             //hGet.setHeader("Content-type", "application/json");
         }
 
-        Object makeQuery(List<Object> inputValues){
-            if(inputValues.size()!=inputFields.length){
-                System.err.println("Mismatch in input values. Expected: " + Arrays.toString(inputFields) + ", Got: " + inputValues);
+        Object makeQuery(List<Object> inputValues) {
+            if (inputValues.size() != esInputFields.length) {
+                System.err.println("Mismatch in input values. Expected fields: " + Arrays.toString(esInputFields) + ", Got values: " + inputValues);
                 return "NOT_AVAILABLE_1";
-            }
-            else if(inputValues.size()==0){
+            } else if (inputValues.size() == 0) {
+                System.err.println("Empty input values received.");
                 return "NOT_AVAILABLE_2";
             }
 
+            // Build ES query
             StringBuilder requestJson = new StringBuilder("{\"query\": { \"bool\": { \"must\": [");
-            for(int i=0; i<inputFields.length; i++){
+            for (int i = 0; i < esInputFields.length; i++) {
                 if (i != 0) requestJson.append(",");
-                 requestJson.append("{\"term\": {\"")
-                   .append(esInputFields[i].trim()).append(".keyword")
-                   .append("\": \"").append(inputValues.get(i).toString().trim()).append("\"}}");
+                requestJson.append("{\"term\": {\"")
+                    .append(esInputFields[i].trim()).append(".keyword")
+                    .append("\": \"").append(inputValues.get(i).toString().trim()).append("\"}}");
             }
             requestJson.append("]}}}");
-            
-            //hGet.setEntity(new StringEntity(requestJson));
 
-            JSONObject responseJson;
+            System.out.println("ES Query JSON: " + requestJson);
 
             final int MAX_RETRIES = 5;
-            for(int i=1; i <= MAX_RETRIES; i++){
+            for (int i = 1; i <= MAX_RETRIES; i++) {
                 try {
                     HttpPost hPost = new HttpPost(this.esUrl + "/" + this.esIndex + "/_search");
                     hPost.setHeader("Content-type", "application/json");
@@ -128,37 +127,102 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                     try (CloseableHttpResponse hResponse = hClient.execute(hPost)) {
                         int statusCode = hResponse.getCode();
                         if (statusCode != 200) {
-                            System.err.println("ES response code: " + statusCode + " on attempt " + i);
+                            System.err.println("Elasticsearch returned non-200 code: " + statusCode + " on attempt " + i);
                             continue;
                         }
 
-                        HttpEntity entity = hResponse.getEntity();
-                        String jsonString = EntityUtils.toString(entity);
-                        responseJson = new JSONObject(jsonString);
+                        String jsonString = EntityUtils.toString(hResponse.getEntity());
+                        System.out.println("ES Raw Response: " + jsonString);
+                        JSONObject responseJson = new JSONObject(jsonString);
 
                         JSONArray hits = responseJson.getJSONObject("hits").getJSONArray("hits");
-
                         if (hits.length() == 0) {
                             System.out.println("No document found for input: " + inputValues);
-                            return "NOT_AVAILABLE_3";  // <--- return null or a default like "NOT_AVAILABLE"
+                            return "NOT_AVAILABLE_3";
                         }
 
-                        return hits.getJSONObject(0).getJSONObject("_source").optString(esOutputField, null);
+                        JSONObject firstHit = hits.getJSONObject(0).getJSONObject("_source");
+                        String outputValue = firstHit.optString(esOutputField, null);
+                        System.out.println("Extracted value for '" + esOutputField + "': " + outputValue);
+                        return outputValue != null ? outputValue : "NOT_AVAILABLE_4";
                     }
 
-                    
                 } catch (JSONException je) {
                     System.err.println("JSON error on attempt " + i + ": " + je.getMessage());
-                    if (i == MAX_RETRIES) return "NOT_AVAILABLE_4";
+                    if (i == MAX_RETRIES) return "NOT_AVAILABLE_5";
                 } catch (Exception e) {
                     System.err.println("Exception during ES query on attempt " + i + ": " + e.getMessage());
-                    if (i == MAX_RETRIES) return "NOT_AVAILABLE_5";
+                    if (i == MAX_RETRIES) return "NOT_AVAILABLE_6";
                 }
             }
 
-            return "NOT_AVAILABLE_6";// control shouldn't reach here .. it shouldve thrown exception before or returned
-                
+            return "NOT_AVAILABLE_7"; // should not reach here
         }
+
+
+        // Object makeQuery(List<Object> inputValues){
+        //     if(inputValues.size()!=inputFields.length){
+        //         System.err.println("Mismatch in input values. Expected: " + Arrays.toString(inputFields) + ", Got: " + inputValues);
+        //         return "NOT_AVAILABLE_1";
+        //     }
+        //     else if(inputValues.size()==0){
+        //         return "NOT_AVAILABLE_2";
+        //     }
+
+        //     StringBuilder requestJson = new StringBuilder("{\"query\": { \"bool\": { \"must\": [");
+        //     for(int i=0; i<inputFields.length; i++){
+        //         if (i != 0) requestJson.append(",");
+        //          requestJson.append("{\"term\": {\"")
+        //            .append(esInputFields[i].trim()).append(".keyword")
+        //            .append("\": \"").append(inputValues.get(i).toString().trim()).append("\"}}");
+        //     }
+        //     requestJson.append("]}}}");
+            
+        //     //hGet.setEntity(new StringEntity(requestJson));
+
+        //     JSONObject responseJson;
+
+        //     final int MAX_RETRIES = 5;
+        //     for(int i=1; i <= MAX_RETRIES; i++){
+        //         try {
+        //             HttpPost hPost = new HttpPost(this.esUrl + "/" + this.esIndex + "/_search");
+        //             hPost.setHeader("Content-type", "application/json");
+        //             hPost.setEntity(new StringEntity(requestJson.toString()));
+
+        //             try (CloseableHttpResponse hResponse = hClient.execute(hPost)) {
+        //                 int statusCode = hResponse.getCode();
+        //                 if (statusCode != 200) {
+        //                     System.err.println("ES response code: " + statusCode + " on attempt " + i);
+        //                     continue;
+        //                 }
+
+        //                 HttpEntity entity = hResponse.getEntity();
+        //                 String jsonString = EntityUtils.toString(entity);
+        //                 responseJson = new JSONObject(jsonString);
+
+        //                 JSONArray hits = responseJson.getJSONObject("hits").getJSONArray("hits");
+
+        //                 if (hits.length() == 0) {
+        //                     System.out.println("No document found for input: " + inputValues);
+        //                     return "NOT_AVAILABLE_3";  // <--- return null or a default like "NOT_AVAILABLE"
+        //                 }
+
+        //                 return hits.getJSONObject(0).getJSONObject("_source").optString(esOutputField, null);
+        //             }
+
+                    
+        //         } catch (JSONException je) {
+        //             System.err.println("JSON error on attempt " + i + ": " + je.getMessage());
+        //             if (i == MAX_RETRIES) return "NOT_AVAILABLE_4";
+        //         } catch (Exception e) {
+        //             System.err.println("Exception during ES query on attempt " + i + ": " + e.getMessage());
+        //             if (i == MAX_RETRIES) return "NOT_AVAILABLE_5";
+        //         }
+        //     }
+
+        //     return "NOT_AVAILABLE_6";// control shouldn't reach here .. it shouldve thrown exception before or returned
+                
+        // }
 
         List<Object> makeQueryForList(List<Object> inputValues){
 
