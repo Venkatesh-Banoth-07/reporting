@@ -99,10 +99,10 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
         Object makeQuery(List<Object> inputValues){
             if(inputValues.size()!=inputFields.length){
                 System.err.println("Mismatch in input values. Expected: " + Arrays.toString(inputFields) + ", Got: " + inputValues);
-                return null;
+                return "NOT_AVAILABLE";
             }
             else if(inputValues.size()==0){
-                return null;
+                return "NOT_AVAILABLE";
             }
 
             StringBuilder requestJson = new StringBuilder("{\"query\": { \"bool\": { \"must\": [");
@@ -140,7 +140,7 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
 
                         if (hits.length() == 0) {
                             System.out.println("No document found for input: " + inputValues);
-                            return null;  // <--- return null or a default like "NOT_AVAILABLE"
+                            return "NOT_AVAILABLE";  // <--- return null or a default like "NOT_AVAILABLE"
                         }
 
                         return hits.getJSONObject(0).getJSONObject("_source").optString(esOutputField, null);
@@ -149,14 +149,14 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                     
                 } catch (JSONException je) {
                     System.err.println("JSON error on attempt " + i + ": " + je.getMessage());
-                    if (i == MAX_RETRIES) return null;
+                    if (i == MAX_RETRIES) return "NOT_AVAILABLE";
                 } catch (Exception e) {
                     System.err.println("Exception during ES query on attempt " + i + ": " + e.getMessage());
-                    if (i == MAX_RETRIES) return null;
+                    if (i == MAX_RETRIES) return "NOT_AVAILABLE";
                 }
             }
 
-            return null;// control shouldn't reach here .. it shouldve thrown exception before or returned
+            return "NOT_AVAILABLE";// control shouldn't reach here .. it shouldve thrown exception before or returned
                 
         }
 
