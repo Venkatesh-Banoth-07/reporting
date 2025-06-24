@@ -45,7 +45,9 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.io.IOException;
 
 public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Transformation<R> {
@@ -122,10 +124,13 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                     hPost.setHeader("Content-type", "application/json");
                     hPost.setEntity(new StringEntity(requestJson));
 
+                    System.out.println("===> POST URL: " + this.esUrl + "/" + this.esIndex + "/_search");
+                    System.out.println("===> Query JSON: " + requestJson);
+
                     try (CloseableHttpResponse hResponse = hClient.execute(hPost)) {
                         int statusCode = hResponse.getCode();
                         if (statusCode != 200) {
-                            return "Unexpected response from Elasticsearch: " + statusCode;
+                            return "Unexpected ES response: " + statusCode + ". URL: " + hPost.getUri() + ". Payload: " + requestJson;
                         }
 
                         HttpEntity entity = hResponse.getEntity();
@@ -133,11 +138,27 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                         responseJson = new JSONObject(jsonString);
                     }
 
-                    return responseJson.getJSONObject("hits")
-                                    .getJSONArray("hits")
-                                    .getJSONObject(0)
-                                    .getJSONObject("_source")
-                                    .getString(esOutputField);
+                    JSONArray hitsArray = responseJson.getJSONObject("hits").getJSONArray("hits");
+
+                    Set<String> resultSet = new LinkedHashSet<>();
+                    for (int j = 0; j < hitsArray.length(); j++) {
+                        try {
+                            JSONObject sourceObj = hitsArray.getJSONObject(j).getJSONObject("_source");
+                            String value = sourceObj.optString(esOutputField, null);
+                            if (value != null && !value.isEmpty()) {
+                                resultSet.add(value);
+                            }
+                        } catch (Exception e) {
+                            // skip individual bad entries
+                            continue;
+                        }
+                    }
+
+                    // If nothing found
+                    if (resultSet.isEmpty()) return "No history found";
+
+                    // Option 1: Return as a merged string
+                    return String.join(" | ", resultSet);
                 } catch (JSONException je) {
                     if (i == MAX_RETRIES) return "Error: No hits found";
                 } catch (Exception e) {
