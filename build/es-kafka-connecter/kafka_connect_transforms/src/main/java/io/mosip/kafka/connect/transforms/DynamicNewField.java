@@ -99,75 +99,85 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
         }
 
         Object makeQuery(List<Object> inputValues) {
-            if(inputValues.size()!=inputFields.length){
-                return "Cant get all values for the mentioned " + INPUT_FIELDS_CONFIG + ". Given " + INPUT_FIELDS_CONFIG + " : " + Arrays.toString(inputFields)+ " " + inputValues;
+            if (inputValues.size() != inputFields.length) {
+                System.err.println("Mismatch in input fields vs values: " + Arrays.toString(inputFields) + " -> " + inputValues);
+                return "empty";
+            } else if (inputValues.isEmpty()) {
+                return "empty";
             }
-            else if(inputValues.size()==0){
-                return null;
+
+            // Construct ES POST query
+            StringBuilder requestJson = new StringBuilder();
+            requestJson.append("{\"query\": { \"bool\": { \"must\": [");
+            for (int i = 0; i < inputFields.length; i++) {
+                if (i > 0) requestJson.append(",");
+                requestJson.append("{\"term\": {\"")
+                        .append(esInputFields[i])
+                        .append(".keyword\": \"")
+                        .append(inputValues.get(i))
+                        .append("\"}}");
             }
+            requestJson.append("]}}}");
 
-            // Build ES query
-            String requestJson = "{\"query\": { \"bool\": { \"must\": [";
-
-            for(int i=0; i<inputFields.length; i++){
-                if(i!=0)requestJson+=",";
-                requestJson += "{\"term\": {\"" + esInputFields[i] + ".keyword\": \"" + inputValues.get(i) + "\"}}";
-            }
-            requestJson += "]}}}";
-
-            JSONObject responseJson;
-
+            final String fullUrl = this.esUrl + "/" + this.esIndex + "/_search";
             final int MAX_RETRIES = 5;
-            for (int i = 1; i <= MAX_RETRIES; i++) {
-                try {
-                    HttpPost hPost = new HttpPost(this.esUrl + "/" + this.esIndex + "/_search");
-                    hPost.setHeader("Content-type", "application/json");
-                    hPost.setEntity(new StringEntity(requestJson));
 
-                    System.out.println("===> POST URL: " + this.esUrl + "/" + this.esIndex + "/_search");
-                    System.out.println("===> Query JSON: " + requestJson);
+            for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                try {
+                    HttpPost hPost = new HttpPost(fullUrl);
+                    hPost.setHeader("Content-type", "application/json");
+                    hPost.setEntity(new StringEntity(requestJson.toString()));
+
+                    // Debug log
+                    System.out.println("=== Elasticsearch Join Debug ===");
+                    System.out.println("POST URL: " + fullUrl);
+                    System.out.println("Query JSON: " + requestJson);
 
                     try (CloseableHttpResponse hResponse = hClient.execute(hPost)) {
                         int statusCode = hResponse.getCode();
                         if (statusCode != 200) {
-                            return "Unexpected ES response: " + statusCode + ". URL: " + hPost.getUri() + ". Payload: " + requestJson;
+                            System.err.println("Unexpected ES response code: " + statusCode);
+                            return "empty";
                         }
 
                         HttpEntity entity = hResponse.getEntity();
-                        String jsonString = EntityUtils.toString(entity);
-                        responseJson = new JSONObject(jsonString);
-                    }
+                        String responseBody = EntityUtils.toString(entity);
+                        JSONObject responseJson = new JSONObject(responseBody);
+                        JSONArray hits = responseJson.getJSONObject("hits").getJSONArray("hits");
 
-                    JSONArray hitsArray = responseJson.getJSONObject("hits").getJSONArray("hits");
-
-                    Set<String> resultSet = new LinkedHashSet<>();
-                    for (int j = 0; j < hitsArray.length(); j++) {
-                        try {
-                            JSONObject sourceObj = hitsArray.getJSONObject(j).getJSONObject("_source");
-                            String value = sourceObj.optString(esOutputField, null);
-                            if (value != null && !value.isEmpty()) {
-                                resultSet.add(value);
+                        Set<String> stageSet = new LinkedHashSet<>();
+                        for (int j = 0; j < hits.length(); j++) {
+                            try {
+                                JSONObject source = hits.getJSONObject(j).getJSONObject("_source");
+                                String value = source.optString(esOutputField, null);
+                                if (value != null && !value.trim().isEmpty()) {
+                                    stageSet.add(value.trim());
+                                }
+                            } catch (Exception e) {
+                                System.err.println("Warning: Skipping bad hit - " + e.getMessage());
                             }
-                        } catch (Exception e) {
-                            // skip individual bad entries
-                            continue;
                         }
+
+                        System.out.println("Matched stages: " + stageSet);
+
+                        if (stageSet.isEmpty()) {
+                            System.out.println("No stage found for input: " + inputValues);
+                            return "empty"; // ✅ Final fallback keyword
+                        }
+
+                        return String.join(" | ", stageSet);
                     }
-
-                    // If nothing found
-                    if (resultSet.isEmpty()) return "No history found";
-
-                    // Option 1: Return as a merged string
-                    return String.join(" | ", resultSet);
-                } catch (JSONException je) {
-                    if (i == MAX_RETRIES) return "Error: No hits found";
                 } catch (Exception e) {
-                    if (i == MAX_RETRIES) return "Error occurred while making the query: " + e.getMessage();
+                    System.err.println("Error during ES join (attempt " + attempt + "): " + e.getMessage());
+                    if (attempt == MAX_RETRIES) {
+                        return "empty";
+                    }
                 }
             }
 
-            return "EMPTY";// control shouldn't reach here .. it shouldve thrown exception before or returned
+            return "empty";
         }
+
         
 
         // Object makeQuery(List<Object> inputValues){
