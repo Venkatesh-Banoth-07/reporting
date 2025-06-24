@@ -65,14 +65,11 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
             this.outputField = outputField;
             this.outputSchema = outputSchema;
         }
-        Object make(Object input){
-            return null;
-        }
-        List<Object> makeList(Object input){
-            return null;
-        }
-        void close(){
-        }
+        abstract Object make(Object input);
+
+        abstract List<Object> makeList(Object input);
+
+        void close() {}
     }
     private class ESQueryConfig extends Config{
         String esUrl;
@@ -93,7 +90,7 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
             this.esOutputField=esOutputField;
 
             // esClient = new RestHighLevelClient(RestClient.builder(HttpHost.create(this.esUrl)));
-            hClient = HttpClients.createDefault();
+            this.hClient = HttpClients.createDefault();
             //hGet = new HttpGet(this.esUrl+"/"+this.esIndex+"/_search");
             //hGet.setHeader("Content-type", "application/json");
         }
@@ -114,7 +111,7 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                 requestJson.append("{\"term\": {\"")
                         .append(esInputFields[i])
                         .append(".keyword\": \"")
-                        .append(inputValues.get(i))
+                        .append(String.valueOf(inputValues.get(i)))
                         .append("\"}}");
             }
             requestJson.append("]}}}");
@@ -128,44 +125,27 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                     hPost.setHeader("Content-type", "application/json");
                     hPost.setEntity(new StringEntity(requestJson.toString()));
 
-                    // Debug log
-                    System.out.println("=== Elasticsearch Join Debug ===");
-                    System.out.println("POST URL: " + fullUrl);
-                    System.out.println("Query JSON: " + requestJson);
-
-                    try (CloseableHttpResponse hResponse = hClient.execute(hPost)) {
-                        int statusCode = hResponse.getCode();
+                    try (CloseableHttpResponse response = hClient.execute(hPost)) {
+                        int statusCode = response.getCode();
                         if (statusCode != 200) {
                             System.err.println("Unexpected ES response code: " + statusCode);
                             return "empty";
                         }
 
-                        HttpEntity entity = hResponse.getEntity();
+                        HttpEntity entity = response.getEntity();
                         String responseBody = EntityUtils.toString(entity);
                         JSONObject responseJson = new JSONObject(responseBody);
                         JSONArray hits = responseJson.getJSONObject("hits").getJSONArray("hits");
 
-                        Set<String> stageSet = new LinkedHashSet<>();
+                        Set<String> outputValues = new LinkedHashSet<>();
                         for (int j = 0; j < hits.length(); j++) {
-                            try {
-                                JSONObject source = hits.getJSONObject(j).getJSONObject("_source");
-                                String value = source.optString(esOutputField, null);
-                                if (value != null && !value.trim().isEmpty()) {
-                                    stageSet.add(value.trim());
-                                }
-                            } catch (Exception e) {
-                                System.err.println("Warning: Skipping bad hit - " + e.getMessage());
+                            JSONObject src = hits.getJSONObject(j).optJSONObject("_source");
+                            if (src != null) {
+                                String val = src.optString(esOutputField, "").trim();
+                                if (!val.isEmpty()) outputValues.add(val);
                             }
                         }
-
-                        System.out.println("Matched stages: " + stageSet);
-
-                        if (stageSet.isEmpty()) {
-                            System.out.println("No stage found for input: " + inputValues);
-                            return "empty"; // ✅ Final fallback keyword
-                        }
-
-                        return String.join(" | ", stageSet);
+                        return outputValues.isEmpty() ? "empty" : String.join(" | ", outputValues);
                     }
                 } catch (Exception e) {
                     System.err.println("Error during ES join (attempt " + attempt + "): " + e.getMessage());
@@ -178,162 +158,41 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
             return "empty";
         }
 
-        
-
-        // Object makeQuery(List<Object> inputValues){
-        //     if(inputValues.size()!=inputFields.length){
-        //         System.err.println("Mismatch in input values. Expected: " + Arrays.toString(inputFields) + ", Got: " + inputValues);
-        //         return "NOT_AVAILABLE_1";
-        //     }
-        //     else if(inputValues.size()==0){
-        //         return "NOT_AVAILABLE_2";
-        //     }
-
-        //     StringBuilder requestJson = new StringBuilder("{\"query\": { \"bool\": { \"must\": [");
-        //     for(int i=0; i<inputFields.length; i++){
-        //         if (i != 0) requestJson.append(",");
-        //          requestJson.append("{\"term\": {\"")
-        //            .append(esInputFields[i].trim()).append(".keyword")
-        //            .append("\": \"").append(inputValues.get(i).toString().trim()).append("\"}}");
-        //     }
-        //     requestJson.append("]}}}");
-            
-        //     //hGet.setEntity(new StringEntity(requestJson));
-
-        //     JSONObject responseJson;
-
-        //     final int MAX_RETRIES = 5;
-        //     for(int i=1; i <= MAX_RETRIES; i++){
-        //         try {
-        //             HttpPost hPost = new HttpPost(this.esUrl + "/" + this.esIndex + "/_search");
-        //             hPost.setHeader("Content-type", "application/json");
-        //             hPost.setEntity(new StringEntity(requestJson.toString()));
-
-        //             try (CloseableHttpResponse hResponse = hClient.execute(hPost)) {
-        //                 int statusCode = hResponse.getCode();
-        //                 if (statusCode != 200) {
-        //                     System.err.println("ES response code: " + statusCode + " on attempt " + i);
-        //                     continue;
-        //                 }
-
-        //                 HttpEntity entity = hResponse.getEntity();
-        //                 String jsonString = EntityUtils.toString(entity);
-        //                 responseJson = new JSONObject(jsonString);
-
-        //                 JSONArray hits = responseJson.getJSONObject("hits").getJSONArray("hits");
-
-        //                 if (hits.length() == 0) {
-        //                     System.out.println("No document found for input: " + inputValues);
-        //                     return "NOT_AVAILABLE_3";  // <--- return null or a default like "NOT_AVAILABLE"
-        //                 }
-
-        //                 return hits.getJSONObject(0).getJSONObject("_source").optString(esOutputField, null);
-        //             }
-
-                    
-        //         } catch (JSONException je) {
-        //             System.err.println("JSON error on attempt " + i + ": " + je.getMessage());
-        //             if (i == MAX_RETRIES) return "NOT_AVAILABLE_4";
-        //         } catch (Exception e) {
-        //             System.err.println("Exception during ES query on attempt " + i + ": " + e.getMessage());
-        //             if (i == MAX_RETRIES) return "NOT_AVAILABLE_5";
-        //         }
-        //     }
-
-        //     return "NOT_AVAILABLE_6";// control shouldn't reach here .. it shouldve thrown exception before or returned
-                
-        // }
-
         List<Object> makeQueryForList(List<Object> inputValues){
 
             int arraySize = -1;
             for(Object v : inputValues){
                 if(v instanceof List){
-                    if(arraySize == -1) arraySize = ((List<Object>)v).size();
-                    else if(arraySize != ((List<Object>)v).size()) throw new DataException("Irregular Array List Sizes");
+                    if(arraySize == -1) arraySize = ((List<?>)v).size();
+                    else if(arraySize != ((List<?>)v).size()) throw new DataException("Irregular Array List Sizes");
                 }
             }
-            List<Object> input = new ArrayList<Object>();
             List<Object> output = new ArrayList<Object>();
 
-            for(int j = 0; j < arraySize; j++){
-                List<Object> list = new ArrayList<Object>();
-                for(int i = 0; i < inputValues.size(); i++){
-
-                    if(inputValues.get(i) instanceof List){
-                        list.add(((List<Object>)inputValues.get(i)).get(j));
-                    }
-                    else{
-                        list.add(inputValues.get(i));
-                    }
+            for (int j = 0; j < arraySize; j++) {
+                List<Object> singleInput = new ArrayList<>();
+                for (Object v : inputValues) {
+                    if (v instanceof List<?>) singleInput.add(((List<?>) v).get(j));
+                    else singleInput.add(v);
                 }
-                input.add(list);
-
+                output.add(make(singleInput));
             }
-
-            for(Object v : input){
-                output.add(make(v));
-            }
-
             return output;
         }
-        // Object makeQuery(List<Object> inputValues){
-        //     if(inputValues.size()!=inputFields.length){
-        //         return "Cant get all values for the mentioned " + INPUT_FIELDS_CONFIG + ". Given " + INPUT_FIELDS_CONFIG + " : " + inputFields;
-        //     }
-        //     else if(inputValues.size()==0){
-        //         return null;
-        //     }
-        //     // todo
-        //     SearchRequest searchRequest = new SearchRequest();
-        //     searchRequest.indices(esIndex);
-        //     SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
-        //     BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
-        //     for(int i=0; i<inputFields.length; i++){
-        //         boolQueryBuilder.must(QueryBuilders.termQuery(esInputFields[i], inputValues.get(i)));
-        //     }
-        //     sourceBuilder.query(boolQueryBuilder);
-        //     searchRequest.source(sourceBuilder);
-        //
-        //     SearchResponse searchResponse;
-        //     final int MAX_RETRIES = 5;
-        //     for(int i=1; i <= MAX_RETRIES; i++){
-        //         try{
-        //             searchResponse = esClient.search(searchRequest, RequestOptions.DEFAULT);
-        //         }
-        //         catch(Exception e){
-        //             if(i==MAX_RETRIES) return "Error occured while making the query : " + e.getMessage();
-        //             else continue;
-        //         }
-        //
-        //         // get the top hit .. error handling not done properly
-        //         try{
-        //             SearchHit[] hits = searchResponse.getHits().getHits();
-        //             return hits[0].getSourceAsMap().get(esOutputField);
-        //         }
-        //         catch(Exception e){
-        //             if(i==MAX_RETRIES) return "Error occured after querying, while getting the new field : " + e.getMessage();
-        //             else continue;
-        //         }
-        //     }
-        //     // control shouldn't reach here .. it shouldve thrown exception before or returned
-        //     return "EMPTY";
-        // }
         
-        @Override
-        Object make(Object input){
-            return this.makeQuery((List<Object>)input);
+         @Override
+        Object make(Object input) {
+            return makeQuery((List<Object>) input);
         }
 
         @Override
-        List<Object> makeList(Object input){
-            return this.makeQueryForList((List<Object>)input);
+        List<Object> makeList(Object input) {
+            return makeQueryForList((List<Object>) input);
         }
 
         @Override
-        void close(){
-            // try{ esClient.close(); }catch(Exception e){}
-            try{hClient.close();}catch(Exception e){}
+        void close() {
+            try { hClient.close(); } catch (IOException ignored) {}
         }
 
     }
@@ -364,11 +223,11 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
 
     @Override
     public void configure(Map<String, ?> configs) {
-        AbstractConfig absconf = new AbstractConfig(CONFIG_DEF, configs, false);
+        AbstractConfig absconf = new AbstractConfig(CONFIG_DEF, configs);
 
         schemaUpdateCache = new SynchronizedCache<>(new LRUCache<Schema,Schema>(16));
 
-        String type = "es";
+        String type = absconf.getString(TYPE_CONFIG);
 
         if(type.equals("es")){
             String esUrl = absconf.getString(ES_URL_CONFIG);
@@ -471,56 +330,55 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
         final Map<String, Object> updatedValue = new HashMap<>(value);
 
         List<Object> valueList = new ArrayList<Object>();
-        boolean nullValues = false;
-        boolean dealingWithList = false;
-        for(int i = 0; i < config.inputFields.length; i++){
-            Object v = Requirements.getNestedField(value,config.inputFields[i]);
-            if(v!=null){
-                valueList.add(v);
-                if(v instanceof List<?>) dealingWithList = true;
+        boolean nullFound = false, hasList = false;
+        for (int i = 0; i < config.inputFields.length; i++) {
+            Object v = Requirements.getNestedField(value, config.inputFields[i]);
+            if (v == null || (v instanceof String && ((String)v).isEmpty())) {
+                if (!"null".equals(config.inputDefaultValues[i])) v = config.inputDefaultValues[i];
+                else { nullFound = true; break; }
             }
-            else{
-                if(!config.inputDefaultValues[i].equals("null")){
-                    valueList.add(config.inputDefaultValues[i]);                    
-                }
-                else{
-                    nullValues = true;
-                    break;
-                }
-            }
+            if (v instanceof List<?>) hasList = true;
+            valueList.add(v);
         }
-        if(!nullValues && !dealingWithList) updatedValue.put(config.outputField, config.make(valueList));
-        else if(!nullValues && dealingWithList) updatedValue.put(config.outputField, config.makeList(valueList));
-
+        Object result = (!nullFound && hasList) ? config.makeList(valueList) : (!nullFound ? config.make(valueList) : "empty");
+        updatedValue.put(config.outputField, result);
         return newRecord(record, null, updatedValue);
     }
 
+
     private R applyWithSchema(R record) {
-        final Struct value = Requirements.requireStruct(operatingValue(record), PURPOSE);
-
-        Schema updatedSchema = schemaUpdateCache.get(value.schema());
+        Struct value = Requirements.requireStruct(operatingValue(record), PURPOSE);
+        Schema schema = value.schema();
+        Schema updatedSchema = schemaUpdateCache.get(schema);
         if (updatedSchema == null) {
-            updatedSchema = makeUpdatedSchema(value.schema());
-            schemaUpdateCache.put(value.schema(), updatedSchema);
+            SchemaBuilder builder = SchemaUtil.copySchemaBasics(schema, SchemaBuilder.struct());
+            for (Field field : schema.fields()) builder.field(field.name(), field.schema());
+            builder.field(config.outputField, config.outputSchema);
+            updatedSchema = builder.build();
+            schemaUpdateCache.put(schema, updatedSchema);
         }
 
-        final Struct updatedValue = new Struct(updatedSchema);
+        Struct updatedValue = new Struct(updatedSchema);
+        for (Field field : schema.fields()) updatedValue.put(field.name(), value.get(field));
 
-        for (Field field : value.schema().fields()) {
-            updatedValue.put(field.name(), value.get(field));
-        }
 
-        List<Object> valueList = new ArrayList<Object>();
+        List<Object> valueList = new ArrayList<>();
         for(String field : config.inputFields){
-            Object v = ((Object[])Requirements.getNestedField(value,field))[0];
+            Object v = Requirements.getNestedField(value, field);
             // v is expected to be a string, case of List dealt in applySchemaless()
-            if(v!=null) valueList.add(v);
+            if (v != null) valueList.add(v);
+            else {
+                if (!"null".equals(config.inputDefaultValues[Arrays.asList(config.inputFields).indexOf(field)]))
+                    valueList.add(config.inputDefaultValues[Arrays.asList(config.inputFields).indexOf(field)]);
+                else valueList.add("empty");
+            }
 
         }
         updatedValue.put(config.outputField, config.make(valueList));
 
         return newRecord(record, updatedSchema, updatedValue);
     }
+    
     private Schema makeUpdatedSchema(Schema schema) {
         final SchemaBuilder builder = SchemaUtil.copySchemaBasics(schema, SchemaBuilder.struct());
 
