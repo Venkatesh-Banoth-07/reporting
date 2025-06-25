@@ -99,7 +99,11 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                         break;
                     }
                 } else {
-                    processedValues.add(value);
+                    if (value instanceof Object[]) {
+                        processedValues.add(Arrays.asList((Object[]) value)); // Fix: Convert array to list
+                    } else {
+                        processedValues.add(value); // Keep as is
+                    }
                 }
             }
             
