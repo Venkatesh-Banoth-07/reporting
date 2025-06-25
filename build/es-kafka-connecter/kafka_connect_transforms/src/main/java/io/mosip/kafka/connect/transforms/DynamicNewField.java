@@ -148,7 +148,7 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                 }
             }
             
-            requestJson.append("]}}, \"size\": 100");
+            requestJson.append("]}}, \"size\": 100}");
 
             // Construct ES POST query
             // StringBuilder requestJson = new StringBuilder();
