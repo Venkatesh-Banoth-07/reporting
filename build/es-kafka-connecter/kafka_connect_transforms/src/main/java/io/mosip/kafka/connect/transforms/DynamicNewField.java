@@ -208,11 +208,13 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                                 String val = src.optString(esOutputField, "").trim();
                                 if (!val.isEmpty()) {
                                     outputValues.add(val);
+                                    System.out.println("outputValues: " + outputValues);
                                     System.out.println("Found value: " + val);
                                 }
                             }
                         }
-                        
+                        System.out.println("result : " + outputValues);
+
                         String result = outputValues.isEmpty() ? "empty" : String.join(" | ", outputValues);
                         System.out.println("Final result: " + result);
                         return result;
