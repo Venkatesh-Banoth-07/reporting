@@ -67,9 +67,9 @@ curl \
           "transforms.enrichFromH.type": "io.mosip.kafka.connect.transforms.DynamicNewField$Value",
           "transforms.enrichFromH.es.index": '\"$DB_PREFIX_INDEX.regprc.mvs_application_h\"',
           "transforms.enrichFromH.es.url": '\"$ES_URL\"',
-          "transforms.enrichFromH.input.fields": "reg_id",
-          "transforms.enrichFromH.input.default.values": "reg_id",
-          "transforms.enrichFromH.es.input.fields": "reg_id",
+          "transforms.enrichFromH.input.fields": "reg_id,assigned_officer_role",
+          "transforms.enrichFromH.input.default.values": "null,MVS_OFFICER",
+          "transforms.enrichFromH.es.input.fields": "reg_id,verified_officer_role",
           "transforms.enrichFromH.es.output.field": "stage",
           "transforms.enrichFromH.output.field": "stage_h",
 

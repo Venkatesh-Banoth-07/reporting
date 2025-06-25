@@ -14,27 +14,13 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 
-// import org.apache.http.HttpHost;
-// import org.elasticsearch.client.RestHighLevelClient;
-// import org.elasticsearch.client.RestClient;
-// import org.elasticsearch.client.RequestOptions;
-// import org.elasticsearch.action.search.SearchRequest;
-// import org.elasticsearch.action.search.SearchResponse;
-// import org.elasticsearch.search.SearchHit;
-// import org.elasticsearch.search.builder.SearchSourceBuilder;
-// import org.elasticsearch.index.query.QueryBuilders;
-// import org.elasticsearch.index.query.BoolQueryBuilder;
-
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.HttpEntity;
-import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
-
 
 import org.json.JSONObject;
 import org.json.JSONException;
@@ -66,20 +52,16 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
             this.outputSchema = outputSchema;
         }
         abstract Object make(Object input);
-
         abstract List<Object> makeList(Object input);
-
         void close() {}
     }
+
     private class ESQueryConfig extends Config{
         String esUrl;
         String esIndex;
         String[] esInputFields;
         String esOutputField;
-
-        // RestHighLevelClient esClient;
         CloseableHttpClient hClient;
-        //HttpGet hGet;
 
         ESQueryConfig(String type, String esUrl, String esIndex, String[] esInputFields, String esOutputField, String[] inputFields, String[] inputDefaultValues,String outputField) {
             super(type,inputFields,inputDefaultValues,outputField,Schema.STRING_SCHEMA);
@@ -88,11 +70,7 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
             this.esIndex=esIndex;
             this.esInputFields=esInputFields;
             this.esOutputField=esOutputField;
-
-            // esClient = new RestHighLevelClient(RestClient.builder(HttpHost.create(this.esUrl)));
             this.hClient = HttpClients.createDefault();
-            //hGet = new HttpGet(this.esUrl+"/"+this.esIndex+"/_search");
-            //hGet.setHeader("Content-type", "application/json");
         }
 
         Object makeQuery(List<Object> inputValues) {
@@ -103,21 +81,56 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                 return "empty";
             }
 
+            // Check for null values and apply defaults
+            List<Object> processedValues = new ArrayList<>();
+            boolean hasNullValue = false;
+            
+            for (int i = 0; i < inputValues.size(); i++) {
+                Object value = inputValues.get(i);
+                String defaultValue = inputDefaultValues[i];
+                
+                // Check if value is null or empty
+                if (value == null || (value instanceof String && ((String)value).trim().isEmpty())) {
+                    if (!"null".equals(defaultValue)) {
+                        processedValues.add(defaultValue);
+                    } else {
+                        hasNullValue = true;
+                        break;
+                    }
+                } else {
+                    processedValues.add(value);
+                }
+            }
+            
+            if (hasNullValue) {
+                System.out.println("Null value found with no default, returning empty for: " + inputValues);
+                return "empty";
+            }
+
             // Construct ES POST query
             StringBuilder requestJson = new StringBuilder();
             requestJson.append("{\"query\": { \"bool\": { \"must\": [");
-            for (int i = 0; i < inputFields.length; i++) {
+            
+            for (int i = 0; i < esInputFields.length; i++) {
                 if (i > 0) requestJson.append(",");
+                
+                String fieldValue = String.valueOf(processedValues.get(i));
+                // Escape JSON special characters
+                fieldValue = fieldValue.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
+                
                 requestJson.append("{\"term\": {\"")
                         .append(esInputFields[i])
                         .append(".keyword\": \"")
-                        .append(String.valueOf(inputValues.get(i)))
+                        .append(fieldValue)
                         .append("\"}}");
             }
-            requestJson.append("]}}}");
+            requestJson.append("]}}, \"size\": 100}"); // Limit results to prevent large responses
 
             final String fullUrl = this.esUrl + "/" + this.esIndex + "/_search";
-            final int MAX_RETRIES = 5;
+            final int MAX_RETRIES = 3;
+
+            System.out.println("ES Query: " + requestJson.toString());
+            System.out.println("ES URL: " + fullUrl);
 
             for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
                 try {
@@ -127,29 +140,51 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
 
                     try (CloseableHttpResponse response = hClient.execute(hPost)) {
                         int statusCode = response.getCode();
+                        HttpEntity entity = response.getEntity();
+                        String responseBody = EntityUtils.toString(entity);
+                        
+                        System.out.println("ES Response Status: " + statusCode);
+                        
                         if (statusCode != 200) {
                             System.err.println("Unexpected ES response code: " + statusCode);
+                            System.err.println("Response body: " + responseBody);
                             return "empty";
                         }
 
-                        HttpEntity entity = response.getEntity();
-                        String responseBody = EntityUtils.toString(entity);
                         JSONObject responseJson = new JSONObject(responseBody);
-                        JSONArray hits = responseJson.getJSONObject("hits").getJSONArray("hits");
+                        JSONObject hitsObj = responseJson.getJSONObject("hits");
+                        JSONArray hits = hitsObj.getJSONArray("hits");
+                        
+                        System.out.println("Total hits: " + hitsObj.getJSONObject("total").getInt("value"));
 
                         Set<String> outputValues = new LinkedHashSet<>();
                         for (int j = 0; j < hits.length(); j++) {
-                            JSONObject src = hits.getJSONObject(j).optJSONObject("_source");
-                            if (src != null) {
+                            JSONObject hit = hits.getJSONObject(j);
+                            JSONObject src = hit.optJSONObject("_source");
+                            if (src != null && src.has(esOutputField)) {
                                 String val = src.optString(esOutputField, "").trim();
-                                if (!val.isEmpty()) outputValues.add(val);
+                                if (!val.isEmpty()) {
+                                    outputValues.add(val);
+                                    System.out.println("Found value: " + val);
+                                }
                             }
                         }
-                        return outputValues.isEmpty() ? "empty" : String.join(" | ", outputValues);
+                        
+                        String result = outputValues.isEmpty() ? "empty" : String.join(" | ", outputValues);
+                        System.out.println("Final result: " + result);
+                        return result;
                     }
                 } catch (Exception e) {
                     System.err.println("Error during ES join (attempt " + attempt + "): " + e.getMessage());
+                    e.printStackTrace();
                     if (attempt == MAX_RETRIES) {
+                        return "empty";
+                    }
+                    // Wait before retry
+                    try {
+                        Thread.sleep(1000 * attempt);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
                         return "empty";
                     }
                 }
@@ -159,7 +194,6 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
         }
 
         List<Object> makeQueryForList(List<Object> inputValues){
-
             int arraySize = -1;
             for(Object v : inputValues){
                 if(v instanceof List){
@@ -192,9 +226,12 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
 
         @Override
         void close() {
-            try { hClient.close(); } catch (IOException ignored) {}
+            try { 
+                if (hClient != null) {
+                    hClient.close(); 
+                }
+            } catch (IOException ignored) {}
         }
-
     }
 
     public static final String PURPOSE = "dynamic field insertion";
@@ -218,13 +255,11 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
         .define(ES_OUTPUT_FIELD_CONFIG, ConfigDef.Type.STRING, "", ConfigDef.Importance.HIGH, "If a successful match is made with the above input field+value, the value of this output field from the same document will be returned")
         .define(INPUT_FIELDS_CONFIG, ConfigDef.Type.STRING, "", ConfigDef.Importance.HIGH, "Name of the field in the current index")
         .define(OUTPUT_FIELD_CONFIG, ConfigDef.Type.STRING, "", ConfigDef.Importance.HIGH, "Name to give to the new field")
-        .define(DEFAULT_VALUE_CONFIG, ConfigDef.Type.STRING, "", ConfigDef.Importance.HIGH, "Default vlaues for input fields");
-
+        .define(DEFAULT_VALUE_CONFIG, ConfigDef.Type.STRING, "", ConfigDef.Importance.HIGH, "Default values for input fields");
 
     @Override
     public void configure(Map<String, ?> configs) {
         AbstractConfig absconf = new AbstractConfig(CONFIG_DEF, configs);
-
         schemaUpdateCache = new SynchronizedCache<>(new LRUCache<Schema,Schema>(16));
 
         String type = absconf.getString(TYPE_CONFIG);
@@ -239,7 +274,7 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
             String inputDefaultValuesBulk = absconf.getString(DEFAULT_VALUE_CONFIG);
 
             if(type.isEmpty() || esUrl.isEmpty() || esIndex.isEmpty() || esInputFieldBulk.isEmpty() || esOutputField.isEmpty() || inputFieldBulk.isEmpty() || outputField.isEmpty() || inputDefaultValuesBulk.isEmpty()){
-                throw new ConfigException("One of required transform config fields not set. Required field in tranforms: " + ES_URL_CONFIG + " ," + ES_INDEX_CONFIG + " ," + ES_INPUT_FIELDS_CONFIG + " ," + ES_OUTPUT_FIELD_CONFIG + " ," + INPUT_FIELDS_CONFIG + " ," + OUTPUT_FIELD_CONFIG + " ," + DEFAULT_VALUE_CONFIG);
+                throw new ConfigException("One of required transform config fields not set. Required fields: " + ES_URL_CONFIG + " ," + ES_INDEX_CONFIG + " ," + ES_INPUT_FIELDS_CONFIG + " ," + ES_OUTPUT_FIELD_CONFIG + " ," + INPUT_FIELDS_CONFIG + " ," + OUTPUT_FIELD_CONFIG + " ," + DEFAULT_VALUE_CONFIG);
             }
 
             String[] inputFields = inputFieldBulk.replaceAll("\\s+","").split(",");
@@ -247,14 +282,15 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
             String[] inputDefaultValues = inputDefaultValuesBulk.replaceAll("\\s+","").split(",");
 
             if(inputFields.length != esInputFields.length || inputFields.length != inputDefaultValues.length){
-                throw new ConfigException("No of " + INPUT_FIELDS_CONFIG + " and no of " + ES_INPUT_FIELDS_CONFIG + "and number of " + DEFAULT_VALUE_CONFIG + " doesnt match. Given " + INPUT_FIELDS_CONFIG + ": " + inputFieldBulk + ". Given " + ES_INPUT_FIELDS_CONFIG + ": " + esInputFieldBulk + ". Given " + DEFAULT_VALUE_CONFIG + ": " + inputDefaultValuesBulk);
+                throw new ConfigException("Number of " + INPUT_FIELDS_CONFIG + " and number of " + ES_INPUT_FIELDS_CONFIG + " and number of " + DEFAULT_VALUE_CONFIG + " don't match. Given " + INPUT_FIELDS_CONFIG + ": " + inputFieldBulk + ". Given " + ES_INPUT_FIELDS_CONFIG + ": " + esInputFieldBulk + ". Given " + DEFAULT_VALUE_CONFIG + ": " + inputDefaultValuesBulk);
             }
 
             try{
                 config = new ESQueryConfig(type,esUrl,esIndex,esInputFields,esOutputField,inputFields,inputDefaultValues,outputField);
+                System.out.println("DynamicNewField configured successfully for ES URL: " + esUrl + ", Index: " + esIndex);
             }
             catch(Exception e){
-                throw new ConfigException("Can't connect to ElasticSearch. Given url : " + esUrl + " Error: " + e.getMessage());
+                throw new ConfigException("Can't initialize ElasticSearch configuration. Given url : " + esUrl + " Error: " + e.getMessage());
             }
         }
         else{
@@ -269,6 +305,9 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
 
     @Override
     public void close() {
+        if (config != null) {
+            config.close();
+        }
         schemaUpdateCache = null;
     }
 
@@ -284,9 +323,7 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
     }
 
     protected abstract Schema operatingSchema(R record);
-
     protected abstract Object operatingValue(R record);
-
     protected abstract R newRecord(R record, Schema updatedSchema, Object updatedValue);
 
     public static class Key<R extends ConnectRecord<R>> extends DynamicNewField<R> {
@@ -323,33 +360,37 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
         }
     }
 
-
     private R applySchemaless(R record) {
         final Map<String, Object> value = Requirements.requireMap(operatingValue(record), PURPOSE);
-
         final Map<String, Object> updatedValue = new HashMap<>(value);
 
         List<Object> valueList = new ArrayList<Object>();
         boolean nullFound = false, hasList = false;
+        
         for (int i = 0; i < config.inputFields.length; i++) {
             Object v = Requirements.getNestedField(value, config.inputFields[i]);
-            if (v == null || (v instanceof String && ((String)v).isEmpty())) {
-                if (!"null".equals(config.inputDefaultValues[i])) v = config.inputDefaultValues[i];
-                else { nullFound = true; break; }
+            if (v == null || (v instanceof String && ((String)v).trim().isEmpty())) {
+                if (!"null".equals(config.inputDefaultValues[i])) {
+                    v = config.inputDefaultValues[i];
+                } else { 
+                    nullFound = true; 
+                    break; 
+                }
             }
             if (v instanceof List<?>) hasList = true;
             valueList.add(v);
         }
+        
         Object result = (!nullFound && hasList) ? config.makeList(valueList) : (!nullFound ? config.make(valueList) : "empty");
         updatedValue.put(config.outputField, result);
         return newRecord(record, null, updatedValue);
     }
 
-
     private R applyWithSchema(R record) {
         Struct value = Requirements.requireStruct(operatingValue(record), PURPOSE);
         Schema schema = value.schema();
         Schema updatedSchema = schemaUpdateCache.get(schema);
+        
         if (updatedSchema == null) {
             SchemaBuilder builder = SchemaUtil.copySchemaBasics(schema, SchemaBuilder.struct());
             for (Field field : schema.fields()) builder.field(field.name(), field.schema());
@@ -361,35 +402,23 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
         Struct updatedValue = new Struct(updatedSchema);
         for (Field field : schema.fields()) updatedValue.put(field.name(), value.get(field));
 
-
         List<Object> valueList = new ArrayList<>();
-        for(String field : config.inputFields){
-            Object v = Requirements.getNestedField(value, field);
-            // v is expected to be a string, case of List dealt in applySchemaless()
-            if (v != null) valueList.add(v);
-            else {
-                if (!"null".equals(config.inputDefaultValues[Arrays.asList(config.inputFields).indexOf(field)]))
-                    valueList.add(config.inputDefaultValues[Arrays.asList(config.inputFields).indexOf(field)]);
-                else valueList.add("empty");
+        for(int i = 0; i < config.inputFields.length; i++){
+            String fieldName = config.inputFields[i];
+            Object v = Requirements.getNestedField(value, fieldName);
+            
+            if (v == null || (v instanceof String && ((String)v).trim().isEmpty())) {
+                if (!"null".equals(config.inputDefaultValues[i])) {
+                    valueList.add(config.inputDefaultValues[i]);
+                } else {
+                    valueList.add("empty");
+                }
+            } else {
+                valueList.add(v);
             }
-
         }
+        
         updatedValue.put(config.outputField, config.make(valueList));
-
         return newRecord(record, updatedSchema, updatedValue);
     }
-    
-    private Schema makeUpdatedSchema(Schema schema) {
-        final SchemaBuilder builder = SchemaUtil.copySchemaBasics(schema, SchemaBuilder.struct());
-
-        for (Field field : schema.fields()) {
-            builder.field(field.name(), field.schema());
-        }
-
-        builder.field(config.outputField, config.outputSchema);
-
-        return builder.build();
-    }
-    
-
 }
