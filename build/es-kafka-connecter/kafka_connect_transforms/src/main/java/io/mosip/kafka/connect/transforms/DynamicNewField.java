@@ -27,6 +27,7 @@ import org.json.JSONException;
 import org.json.JSONArray;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -107,31 +108,73 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                 return "empty";
             }
 
-            // Construct ES POST query
             StringBuilder requestJson = new StringBuilder();
             requestJson.append("{\"query\": { \"bool\": { \"must\": [");
             
             for (int i = 0; i < esInputFields.length; i++) {
                 if (i > 0) requestJson.append(",");
-                
-                String fieldValue = String.valueOf(processedValues.get(i));
-                // Escape JSON special characters
-                fieldValue = fieldValue.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
-                
-                requestJson.append("{\"term\": {\"")
-                        .append(esInputFields[i])
-                        .append(".keyword\": \"")
-                        .append(fieldValue)
-                        .append("\"}}");
+            
+                Object value = processedValues.get(i);
+                String fieldName = esInputFields[i];
+            
+                if (value instanceof Collection) {
+                    @SuppressWarnings("unchecked")
+                    Collection<Object> collection = (Collection<Object>) value;
+            
+                    requestJson.append("{\"terms\": {\"")
+                            .append(fieldName)
+                            .append(".keyword\": [");
+            
+                    int count = 0;
+                    for (Object val : collection) {
+                        if (count++ > 0) requestJson.append(",");
+                        requestJson.append("\"")
+                                .append(val.toString().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r"))
+                                .append("\"");
+                    }
+            
+                    requestJson.append("]}}");
+                } else {
+                    String fieldValue = value == null ? "" : value.toString()
+                            .replace("\"", "\\\"")
+                            .replace("\n", "\\n")
+                            .replace("\r", "\\r");
+            
+                    requestJson.append("{\"term\": {\"")
+                            .append(fieldName)
+                            .append(".keyword\": \"")
+                            .append(fieldValue)
+                            .append("\"}}");
+                }
             }
-            requestJson.append("]}}, \"size\": 100}"); // Limit results to prevent large responses
+            
+            requestJson.append("]}}, \"size\": 100");
+
+            // Construct ES POST query
+            // StringBuilder requestJson = new StringBuilder();
+            // requestJson.append("{\"query\": { \"bool\": { \"must\": [");
+            
+            // for (int i = 0; i < esInputFields.length; i++) {
+            //     if (i > 0) requestJson.append(",");
+                
+            //     String fieldValue = String.valueOf(processedValues.get(i));
+            //     // Escape JSON special characters
+            //     fieldValue = fieldValue.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
+                
+            //     requestJson.append("{\"term\": {\"")
+            //             .append(esInputFields[i])
+            //             .append(".keyword\": \"")
+            //             .append(fieldValue)
+            //             .append("\"}}");
+            // }
+            // requestJson.append("]}}, \"size\": 100}"); // Limit results to prevent large responses
 
             final String fullUrl = this.esUrl + "/" + this.esIndex + "/_search";
             final int MAX_RETRIES = 3;
 
             System.out.println("ES Query: " + requestJson.toString());
             System.out.println("ES URL: " + fullUrl);
-
+            
             for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
                 try {
                     HttpPost hPost = new HttpPost(fullUrl);
