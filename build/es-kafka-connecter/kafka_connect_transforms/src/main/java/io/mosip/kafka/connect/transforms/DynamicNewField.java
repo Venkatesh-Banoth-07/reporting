@@ -78,9 +78,9 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
         Object makeQuery(List<Object> inputValues) {
             if (inputValues.size() != inputFields.length) {
                 System.err.println("Mismatch in input fields vs values: " + Arrays.toString(inputFields) + " -> " + inputValues);
-                return Collections.emptyList();
+                return "empty";
             } else if (inputValues.isEmpty()) {
-                return Collections.emptyList();
+                return "empty";
             }
 
             // Check for null values and apply defaults
@@ -110,7 +110,7 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
             
             if (hasNullValue) {
                 System.out.println("Null value found with no default, returning empty for: " + inputValues);
-                return Collections.emptyList();
+                return "empty";
             }
 
             StringBuilder requestJson = new StringBuilder();
@@ -178,7 +178,7 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                         if (statusCode != 200) {
                             System.err.println("Unexpected ES response code: " + statusCode);
                             System.err.println("Response body: " + responseBody);
-                            return Collections.emptyList();
+                            return "empty";
                         }
 
                         JSONObject responseJson = new JSONObject(responseBody);
@@ -187,34 +187,27 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                         
                         System.out.println("Total hits: " + hitsObj.getJSONObject("total").getInt("value"));
 
-                        // Set<String> outputValues = new LinkedHashSet<>();
-                        // for (int j = 0; j < hits.length(); j++) {
-                        //     JSONObject hit = hits.getJSONObject(j);
-                        //     JSONObject src = hit.optJSONObject("_source");
-                        //     if (src != null && src.has(esOutputField)) {
-                        //         String val = src.optString(esOutputField, "").trim();
-                        //         if (!val.isEmpty()) {
-                        //             outputValues.add(val);
-                        //             System.out.println("outputValues: " + outputValues);
-                        //             System.out.println("Found value: " + val);
-                        //         }
-                        //     }
-                        // }
-                        List<Object> stageValues = new ArrayList<>();
+                        Set<String> outputValues = new LinkedHashSet<>();
                         for (int j = 0; j < hits.length(); j++) {
                             JSONObject hit = hits.getJSONObject(j);
                             JSONObject src = hit.optJSONObject("_source");
                             if (src != null && src.has(esOutputField)) {
                                 String val = src.optString(esOutputField, "").trim();
                                 if (!val.isEmpty()) {
-                                    stageValues.add(val);
-                                    System.out.println("Found stage value: " + val);
+                                    outputValues.add(val);
+                                    System.out.println("outputValues: " + outputValues);
+                                    System.out.println("Found value: " + val);
                                 }
                             }
                         }
-                        System.out.println("Final stage_h array: " + stageValues);
+                        
+                        System.out.println("result : " + outputValues);
 
-                        return stageValues.isEmpty() ? Collections.emptyList() : stageValues;
+                        // String result = outputValues.isEmpty() ? "empty" : String.join(" | ", outputValues);
+                        
+                    
+                        List<String> result = outputValues.isEmpty() ? Collections.singletonList("empty") : new ArrayList<>(outputValues);
+                        return result.toString();
                     }
                 } catch (Exception e) {
                     System.err.println("Error during ES join (attempt " + attempt + "): " + e.getMessage());
@@ -227,13 +220,14 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                         Thread.sleep(1000 * attempt);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
-                        return Collections.emptyList();
+                        return "empty";
                     }
                 }
             }
 
-            return Collections.emptyList();
-        }
+            return "empty";
+        } 
+        
 
         List<Object> makeQueryForList(List<Object> inputValues){
             int arraySize = -1;
