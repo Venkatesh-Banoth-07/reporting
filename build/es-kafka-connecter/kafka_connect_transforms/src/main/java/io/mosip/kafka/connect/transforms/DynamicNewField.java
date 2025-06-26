@@ -28,6 +28,7 @@ import org.json.JSONArray;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -77,9 +78,9 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
         Object makeQuery(List<Object> inputValues) {
             if (inputValues.size() != inputFields.length) {
                 System.err.println("Mismatch in input fields vs values: " + Arrays.toString(inputFields) + " -> " + inputValues);
-                return "empty";
+                return Collections.emptyList();
             } else if (inputValues.isEmpty()) {
-                return "empty";
+                return Collections.emptyList();
             }
 
             // Check for null values and apply defaults
@@ -109,7 +110,7 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
             
             if (hasNullValue) {
                 System.out.println("Null value found with no default, returning empty for: " + inputValues);
-                return "empty";
+                return Collections.emptyList();
             }
 
             StringBuilder requestJson = new StringBuilder();
@@ -154,24 +155,6 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
             
             requestJson.append("]}}, \"size\": 100}");
 
-            // Construct ES POST query
-            // StringBuilder requestJson = new StringBuilder();
-            // requestJson.append("{\"query\": { \"bool\": { \"must\": [");
-            
-            // for (int i = 0; i < esInputFields.length; i++) {
-            //     if (i > 0) requestJson.append(",");
-                
-            //     String fieldValue = String.valueOf(processedValues.get(i));
-            //     // Escape JSON special characters
-            //     fieldValue = fieldValue.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
-                
-            //     requestJson.append("{\"term\": {\"")
-            //             .append(esInputFields[i])
-            //             .append(".keyword\": \"")
-            //             .append(fieldValue)
-            //             .append("\"}}");
-            // }
-            // requestJson.append("]}}, \"size\": 100}"); // Limit results to prevent large responses
 
             final String fullUrl = this.esUrl + "/" + this.esIndex + "/_search";
             final int MAX_RETRIES = 3;
@@ -195,7 +178,7 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                         if (statusCode != 200) {
                             System.err.println("Unexpected ES response code: " + statusCode);
                             System.err.println("Response body: " + responseBody);
-                            return "empty";
+                            return Collections.emptyList();
                         }
 
                         JSONObject responseJson = new JSONObject(responseBody);
@@ -204,24 +187,34 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                         
                         System.out.println("Total hits: " + hitsObj.getJSONObject("total").getInt("value"));
 
-                        Set<String> outputValues = new LinkedHashSet<>();
+                        // Set<String> outputValues = new LinkedHashSet<>();
+                        // for (int j = 0; j < hits.length(); j++) {
+                        //     JSONObject hit = hits.getJSONObject(j);
+                        //     JSONObject src = hit.optJSONObject("_source");
+                        //     if (src != null && src.has(esOutputField)) {
+                        //         String val = src.optString(esOutputField, "").trim();
+                        //         if (!val.isEmpty()) {
+                        //             outputValues.add(val);
+                        //             System.out.println("outputValues: " + outputValues);
+                        //             System.out.println("Found value: " + val);
+                        //         }
+                        //     }
+                        // }
+                        List<Object> stageValues = new ArrayList<>();
                         for (int j = 0; j < hits.length(); j++) {
                             JSONObject hit = hits.getJSONObject(j);
                             JSONObject src = hit.optJSONObject("_source");
                             if (src != null && src.has(esOutputField)) {
                                 String val = src.optString(esOutputField, "").trim();
                                 if (!val.isEmpty()) {
-                                    outputValues.add(val);
-                                    System.out.println("outputValues: " + outputValues);
-                                    System.out.println("Found value: " + val);
+                                    stageValues.add(val);
+                                    System.out.println("Found stage value: " + val);
                                 }
                             }
                         }
-                        System.out.println("result : " + outputValues);
+                        System.out.println("Final stage_h array: " + stageValues);
 
-                        String result = outputValues.isEmpty() ? "empty" : String.join(" | ", outputValues);
-                        System.out.println("Final result: " + result);
-                        return result;
+                        return stageValues.isEmpty() ? Collections.emptyList() : stageValues;
                     }
                 } catch (Exception e) {
                     System.err.println("Error during ES join (attempt " + attempt + "): " + e.getMessage());
@@ -234,12 +227,12 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                         Thread.sleep(1000 * attempt);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
-                        return "empty";
+                        return Collections.emptyList();
                     }
                 }
             }
 
-            return "empty";
+            return Collections.emptyList();
         }
 
         List<Object> makeQueryForList(List<Object> inputValues){
