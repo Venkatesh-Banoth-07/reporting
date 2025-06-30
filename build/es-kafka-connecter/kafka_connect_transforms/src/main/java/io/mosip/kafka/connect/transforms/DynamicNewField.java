@@ -206,8 +206,14 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                         // String result = outputValues.isEmpty() ? "empty" : String.join(" | ", outputValues);
                         
                     
-                        List<String> result = outputValues.isEmpty() ? Collections.singletonList("empty") : new ArrayList<>(outputValues);
-                        return result.toString();
+                        if (outputValues.isEmpty()) {
+                            return "empty";
+                        } else if (outputValues.size() == 1) {
+                            return outputValues.iterator().next(); // single value as plain string
+                        } else {
+                            return new ArrayList<>(outputValues); // multi-value as real JSON array
+                        }
+
                     }
                 } catch (Exception e) {
                     System.err.println("Error during ES join (attempt " + attempt + "): " + e.getMessage());
