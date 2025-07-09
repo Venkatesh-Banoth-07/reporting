@@ -602,10 +602,15 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
         if (yob instanceof Integer) {
             yearOfBirth = (int) yob;
         } else if (yob instanceof String) {
-            if (((String) yob).isEmpty()) return;
+            String yobString = (String) yob;
+            // Handle empty strings
+            if (yobString.isEmpty()) {
+                return;
+            }
             try {
-                yearOfBirth = Integer.parseInt((String) yob);
+                yearOfBirth = Integer.parseInt(yobString);
             } catch (NumberFormatException e) {
+                // Handle invalid number format
                 return;
             }
         } else {
@@ -613,95 +618,46 @@ public abstract class AnonymousProfileTransform<R extends ConnectRecord<R>> impl
         }
 
         try {
+            // Safely parse date components
             String[] dateParts = date.split("-");
-            if (dateParts.length < 1) return;
-
+            if (dateParts.length < 1) {
+                return;
+            }
+            
             int currentYear = Integer.parseInt(dateParts[0]);
             int age = currentYear - yearOfBirth;
-
-            for (String ageGroup : agList) {
-                ageGroup = ageGroup.trim();
-                if (ageGroup.contains("-")) {
-                    String[] bounds = ageGroup.split("-");
-                    if (bounds.length == 2) {
-                        int lower = Integer.parseInt(bounds[0]);
-                        int upper = Integer.parseInt(bounds[1]);
-                        if (age >= lower && age <= upper) {
-                            updatedValue.put(agOut, ageGroup);
-                            return;
+            
+            int i;
+            for (i = 0; i < agList.length - 1; i++) {
+                String ageGroup = agList[i].trim();
+                
+                // Handle the "80 and above" case
+                if (ageGroup.toLowerCase().contains("and above")) {
+                    String[] ag = ageGroup.split(" ");
+                    if (ag.length > 0) {
+                        int minAge = Integer.parseInt(ag[0]);
+                        if (age >= minAge) {
+                            break;
                         }
                     }
-                } else if (ageGroup.toLowerCase().contains("above")) {
-                    String[] parts = ageGroup.split(" ");
-                    int lower = Integer.parseInt(parts[0]);
-                    if (age >= lower) {
-                        updatedValue.put(agOut, ageGroup);
-                        return;
+                } else {
+                    // Handle regular age ranges like "0-9", "10-19", etc.
+                    String[] ag = ageGroup.split("-");
+                    if (ag.length >= 2) {
+                        int minAge = Integer.parseInt(ag[0]);
+                        int maxAge = Integer.parseInt(ag[1]);
+                        if (age >= minAge && age <= maxAge) {
+                            break;
+                        }
                     }
                 }
             }
-        } catch (Exception e) {
-            // Handle parsing or logic errors safely
+            updatedValue.put(agOut, agList[i].trim());
+        } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+            // Safely handle any parsing exceptions
+            return;
         }
     }
-
-    // static void processAgeGroup(Map<String, Object> updatedValue, String[] agList, String agOut, String date) {
-    //     // Check if date is null or empty
-    //     if (date == null || date.isEmpty()) {
-    //         return;
-    //     }
-        
-    //     // Check if yearOfBirth exists
-    //     Object yob = updatedValue.get("yearOfBirth");
-    //     if (yob == null) {
-    //         return;
-    //     }
-        
-    //     int yearOfBirth;
-    //     if (yob instanceof Integer) {
-    //         yearOfBirth = (int) yob;
-    //     } else if (yob instanceof String) {
-    //         String yobString = (String) yob;
-    //         // Handle empty strings
-    //         if (yobString.isEmpty()) {
-    //             return;
-    //         }
-    //         try {
-    //             yearOfBirth = Integer.parseInt(yobString);
-    //         } catch (NumberFormatException e) {
-    //             // Handle invalid number format
-    //             return;
-    //         }
-    //     } else {
-    //         return;
-    //     }
-        
-    //     try {
-    //         // Safely parse date components
-    //         String[] dateParts = date.split("-");
-    //         if (dateParts.length < 1) {
-    //             return;
-    //         }
-            
-    //         int currentYear = Integer.parseInt(dateParts[0]);
-    //         int age = currentYear - yearOfBirth;
-            
-    //         int i;
-    //         for (i = 0; i < agList.length - 1; i++) {
-    //             String[] ag = agList[i].trim().split("-");
-    //             if (ag.length < 2) {
-    //                 continue; // Skip malformed age group
-    //             }
-    //             if (age >= Integer.parseInt(ag[0]) && age < Integer.parseInt(ag[1])) {
-    //                 break;
-    //             }
-    //         }
-    //         updatedValue.put(agOut, agList[i].trim());
-    //     } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
-    //         // Safely handle any parsing exceptions
-    //         return;
-    //     }
-    // }
 
     static void processChannel(Map<String, Object> updatedValue, String[] agList){
 
