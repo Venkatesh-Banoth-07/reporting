@@ -75,158 +75,59 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
             this.hClient = HttpClients.createDefault();
         }
 
-        Object makeQuery(List<Object> inputValues) {
-            if (inputValues.size() != inputFields.length) {
-                System.err.println("Mismatch in input fields vs values: " + Arrays.toString(inputFields) + " -> " + inputValues);
-                return "empty";
-            } else if (inputValues.isEmpty()) {
-                return "empty";
+        Object makeQuery(List<Object> inputValues){
+            if(inputValues.size()!=inputFields.length){
+                return "Cant get all values for the mentioned " + INPUT_FIELDS_CONFIG + ". Given " + INPUT_FIELDS_CONFIG + " : " + Arrays.toString(inputFields)+ " " + inputValues;
+            }
+            else if(inputValues.size()==0){
+                return null;
             }
 
-            // Check for null values and apply defaults
-            List<Object> processedValues = new ArrayList<>();
-            boolean hasNullValue = false;
-            
-            for (int i = 0; i < inputValues.size(); i++) {
-                Object value = inputValues.get(i);
-                String defaultValue = inputDefaultValues[i];
-                
-                // Check if value is null or empty
-                if (value == null || (value instanceof String && ((String)value).trim().isEmpty())) {
-                    if (!"null".equals(defaultValue)) {
-                        processedValues.add(defaultValue);
-                    } else {
-                        hasNullValue = true;
-                        break;
-                    }
-                } else {
-                    if (value instanceof Object[]) {
-                        processedValues.add(Arrays.asList((Object[]) value)); // Fix: Convert array to list
-                    } else {
-                        processedValues.add(value); // Keep as is
-                    }
-                }
+            String requestJson = "{\"query\": { \"bool\": { \"must\": [";
+
+            for(int i=0; i<inputFields.length; i++){
+                if(i!=0)requestJson+=",";
+                requestJson += "{\"term\": {\"" + esInputFields[i] + ".keyword\": \"" + inputValues.get(i) + "\"}}";
             }
+            requestJson += "]}}}";
             
-            if (hasNullValue) {
-                System.out.println("Null value found with no default, returning empty for: " + inputValues);
-                return "empty";
-            }
+            //hGet.setEntity(new StringEntity(requestJson));
 
-            StringBuilder requestJson = new StringBuilder();
-            requestJson.append("{\"query\": { \"bool\": { \"must\": [");
-            
-            for (int i = 0; i < esInputFields.length; i++) {
-                if (i > 0) requestJson.append(",");
-            
-                Object value = processedValues.get(i);
-                String fieldName = esInputFields[i];
-            
-                if (value instanceof Collection) {
-                    @SuppressWarnings("unchecked")
-                    Collection<Object> collection = (Collection<Object>) value;
-            
-                    requestJson.append("{\"terms\": {\"")
-                            .append(fieldName)
-                            .append(".keyword\": [");
-            
-                    int count = 0;
-                    for (Object val : collection) {
-                        if (count++ > 0) requestJson.append(",");
-                        requestJson.append("\"")
-                                .append(val.toString().replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r"))
-                                .append("\"");
-                    }
-            
-                    requestJson.append("]}}");
-                } else {
-                    String fieldValue = value == null ? "" : value.toString()
-                            .replace("\"", "\\\"")
-                            .replace("\n", "\\n")
-                            .replace("\r", "\\r");
-            
-                    requestJson.append("{\"term\": {\"")
-                            .append(fieldName)
-                            .append(".keyword\": \"")
-                            .append(fieldValue)
-                            .append("\"}}");
-                }
-            }
-            
-            requestJson.append("]}}, \"size\": 100}");
+            JSONObject responseJson;
 
-
-            final String fullUrl = this.esUrl + "/" + this.esIndex + "/_search";
-            final int MAX_RETRIES = 3;
-
-            System.out.println("ES Query: " + requestJson.toString());
-            System.out.println("ES URL: " + fullUrl);
-            
-            for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            final int MAX_RETRIES = 5;
+            for(int i=1; i <= MAX_RETRIES; i++){
                 try {
-                    HttpPost hPost = new HttpPost(fullUrl);
+                    HttpPost hPost = new HttpPost(this.esUrl + "/" + this.esIndex + "/_search");
                     hPost.setHeader("Content-type", "application/json");
-                    hPost.setEntity(new StringEntity(requestJson.toString()));
+                    hPost.setEntity(new StringEntity(requestJson));
 
-                    try (CloseableHttpResponse response = hClient.execute(hPost)) {
-                        int statusCode = response.getCode();
-                        HttpEntity entity = response.getEntity();
-                        String responseBody = EntityUtils.toString(entity);
-                        
-                        System.out.println("ES Response Status: " + statusCode);
-                        
+                    try (CloseableHttpResponse hResponse = hClient.execute(hPost)) {
+                        int statusCode = hResponse.getCode();
                         if (statusCode != 200) {
-                            System.err.println("Unexpected ES response code: " + statusCode);
-                            System.err.println("Response body: " + responseBody);
-                            return "empty";
+                            return "Unexpected response from Elasticsearch: " + statusCode;
                         }
 
-                        JSONObject responseJson = new JSONObject(responseBody);
-                        JSONObject hitsObj = responseJson.getJSONObject("hits");
-                        JSONArray hits = hitsObj.getJSONArray("hits");
-                        
-                        System.out.println("Total hits: " + hitsObj.getJSONObject("total").getInt("value"));
-
-                        Set<String> outputValues = new LinkedHashSet<>();
-                        for (int j = 0; j < hits.length(); j++) {
-                            JSONObject hit = hits.getJSONObject(j);
-                            JSONObject src = hit.optJSONObject("_source");
-                            if (src != null && src.has(esOutputField)) {
-                                String val = src.optString(esOutputField, "").trim();
-                                if (!val.isEmpty()) {
-                                    outputValues.add(val);
-                                    System.out.println("outputValues: " + outputValues);
-                                    System.out.println("Found value: " + val);
-                                }
-                            }
-                        }
-                        
-                        System.out.println("result : " + outputValues);
-
-                        String result = outputValues.isEmpty() ? "empty" : String.join(" | ", outputValues);
-                        
-                        return result;
-                        
-
+                        HttpEntity entity = hResponse.getEntity();
+                        String jsonString = EntityUtils.toString(entity);
+                        responseJson = new JSONObject(jsonString);
                     }
+
+                    return responseJson.getJSONObject("hits")
+                                    .getJSONArray("hits")
+                                    .getJSONObject(0)
+                                    .getJSONObject("_source")
+                                    .getString(esOutputField);
+                } catch (JSONException je) {
+                    if (i == MAX_RETRIES) return "Error: No hits found";
                 } catch (Exception e) {
-                    System.err.println("Error during ES join (attempt " + attempt + "): " + e.getMessage());
-                    e.printStackTrace();
-                    if (attempt == MAX_RETRIES) {
-                        return "empty";
-                    }
-                    // Wait before retry
-                    try {
-                        Thread.sleep(1000 * attempt);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        return "empty";
-                    }
+                    if (i == MAX_RETRIES) return "Error occurred while making the query: " + e.getMessage();
                 }
             }
 
-            return "empty";
-        } 
+            return "EMPTY";// control shouldn't reach here .. it shouldve thrown exception before or returned
+                
+        }
         
 
         List<Object> makeQueryForList(List<Object> inputValues){
