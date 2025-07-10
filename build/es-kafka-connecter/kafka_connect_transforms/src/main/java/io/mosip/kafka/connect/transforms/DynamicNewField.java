@@ -76,27 +76,25 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
         }
 
         Object makeQuery(List<Object> inputValues){
-            if(inputValues.size()!=inputFields.length){
-                return "Cant get all values for the mentioned " + INPUT_FIELDS_CONFIG + ". Given " + INPUT_FIELDS_CONFIG + " : " + Arrays.toString(inputFields)+ " " + inputValues;
+            if(inputValues.size() != inputFields.length){
+                return "Cant get all values for the mentioned " + INPUT_FIELDS_CONFIG + ". Given " + INPUT_FIELDS_CONFIG + " : " + Arrays.toString(inputFields) + " " + inputValues;
             }
-            else if(inputValues.size()==0){
+            else if(inputValues.size() == 0){
                 return null;
             }
 
             String requestJson = "{\"query\": { \"bool\": { \"must\": [";
 
-            for(int i=0; i<inputFields.length; i++){
-                if(i!=0)requestJson+=",";
+            for(int i = 0; i < inputFields.length; i++){
+                if(i != 0) requestJson += ",";
                 requestJson += "{\"term\": {\"" + esInputFields[i] + ".keyword\": \"" + inputValues.get(i) + "\"}}";
             }
             requestJson += "]}}}";
-            
-            //hGet.setEntity(new StringEntity(requestJson));
 
             JSONObject responseJson;
+            final int MAX_RETRIES = 3; // Reduced retries for actual connection issues
 
-            final int MAX_RETRIES = 5;
-            for(int i=1; i <= MAX_RETRIES; i++){
+            for(int i = 1; i <= MAX_RETRIES; i++){
                 try {
                     HttpPost hPost = new HttpPost(this.esUrl + "/" + this.esIndex + "/_search");
                     hPost.setHeader("Content-type", "application/json");
@@ -105,28 +103,62 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                     try (CloseableHttpResponse hResponse = hClient.execute(hPost)) {
                         int statusCode = hResponse.getCode();
                         if (statusCode != 200) {
-                            return "Unexpected response from Elasticsearch: " + statusCode;
+                            if (i == MAX_RETRIES) {
+                                return "Unexpected response from Elasticsearch: " + statusCode;
+                            }
+                            continue; // Retry for non-200 status codes
                         }
 
                         HttpEntity entity = hResponse.getEntity();
                         String jsonString = EntityUtils.toString(entity);
                         responseJson = new JSONObject(jsonString);
+
+                        // Check if we got a valid response structure
+                        if (!responseJson.has("hits")) {
+                            if (i == MAX_RETRIES) {
+                                return "Invalid response structure from Elasticsearch";
+                            }
+                            continue; // Retry for malformed responses
+                        }
+
+                        JSONObject hitsObj = responseJson.getJSONObject("hits");
+                        JSONArray hitsArray = hitsObj.getJSONArray("hits");
+                        
+                        // Check if we have any hits
+                        if (hitsArray.length() == 0) {
+                            return "No matching record found"; // This is NOT an error - it's a valid "no match" response
+                        }
+
+                        // Extract the result from the first hit
+                        JSONObject firstHit = hitsArray.getJSONObject(0);
+                        JSONObject source = firstHit.getJSONObject("_source");
+                        
+                        if (!source.has(esOutputField)) {
+                            return "Output field '" + esOutputField + "' not found in source document";
+                        }
+
+                        return source.getString(esOutputField);
                     }
 
-                    return responseJson.getJSONObject("hits")
-                                    .getJSONArray("hits")
-                                    .getJSONObject(0)
-                                    .getJSONObject("_source")
-                                    .getString(esOutputField);
-                } catch (JSONException je) {
-                    if (i == MAX_RETRIES) return "Error: No hits found";
+                } catch (IOException e) {
+                    // Network/connection issues - retry
+                    if (i == MAX_RETRIES) {
+                        return "Connection error: " + e.getMessage();
+                    }
+                } catch (JSONException e) {
+                    // JSON parsing issues - retry
+                    if (i == MAX_RETRIES) {
+                        return "JSON parsing error: " + e.getMessage();
+                    }
                 } catch (Exception e) {
-                    if (i == MAX_RETRIES) return "Error occurred while making the query: " + e.getMessage();
+                    // Other unexpected errors - retry
+                    if (i == MAX_RETRIES) {
+                        return "Unexpected error: " + e.getMessage();
+                    }
                 }
             }
 
-            return "EMPTY";// control shouldn't reach here .. it shouldve thrown exception before or returned
-                
+            return "Max retries exceeded"; // This should never be reached
         }
         
 
@@ -318,7 +350,19 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
             valueList.add(v);
         }
         
-        Object result = (!nullFound && hasList) ? config.makeList(valueList) : (!nullFound ? config.make(valueList) : "empty");
+        Object result;
+        if (nullFound) {
+            result = "No input data available";
+        } else if (hasList) {
+            result = config.makeList(valueList);
+        } else {
+            result = config.make(valueList);
+            // Handle the specific case where join returns "No matching record found"
+            if (result instanceof String && ((String)result).equals("No matching record found")) {
+                result = "No match found"; // Shorter, cleaner message for display
+            }
+        }
+        
         updatedValue.put(config.outputField, result);
         return newRecord(record, null, updatedValue);
     }
@@ -340,6 +384,8 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
         for (Field field : schema.fields()) updatedValue.put(field.name(), value.get(field));
 
         List<Object> valueList = new ArrayList<>();
+        boolean nullFound = false;
+        
         for(int i = 0; i < config.inputFields.length; i++){
             String fieldName = config.inputFields[i];
             Object v = Requirements.getNestedField(value, fieldName);
@@ -348,14 +394,26 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                 if (!"null".equals(config.inputDefaultValues[i])) {
                     valueList.add(config.inputDefaultValues[i]);
                 } else {
-                    valueList.add("empty");
+                    nullFound = true;
+                    break;
                 }
             } else {
                 valueList.add(v);
             }
         }
         
-        updatedValue.put(config.outputField, config.make(valueList));
+        Object result;
+        if (nullFound) {
+            result = "No input data available";
+        } else {
+            result = config.make(valueList);
+            // Handle the specific case where join returns "No matching record found"
+            if (result instanceof String && ((String)result).equals("No matching record found")) {
+                result = "No match found"; // Shorter, cleaner message for display
+            }
+        }
+        
+        updatedValue.put(config.outputField, result);
         return newRecord(record, updatedSchema, updatedValue);
     }
 }
