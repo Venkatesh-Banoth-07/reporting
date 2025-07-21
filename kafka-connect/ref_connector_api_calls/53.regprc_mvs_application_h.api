@@ -45,7 +45,7 @@ curl \
           "behavior.on.malformed.documents": "WARN",
           
 
-          "transforms": "debezExtract,tsconvert01,tsconvert02,tsconvert03,nameOfficerRole,tsSelect",
+          "transforms": "debezExtract,tsconvert01,tsconvert02,tsconvert03,insertSourceTable,tsSelect",
 
           "transforms.debezExtract.type": "io.debezium.transforms.ExtractNewRecordState",
           "transforms.debezExtract.delete.handling.mode": "drop",

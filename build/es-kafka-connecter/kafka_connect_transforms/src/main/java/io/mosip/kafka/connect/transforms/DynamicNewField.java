@@ -158,8 +158,8 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
             final String fullUrl = this.esUrl + "/" + this.esIndex + "/_search";
             final int MAX_RETRIES = 3;
 
-            System.out.println("ES Query: " + requestJson.toString());
-            System.out.println("ES URL: " + fullUrl);
+            //System.out.println("ES Query: " + requestJson.toString());
+            //System.out.println("ES URL: " + fullUrl);
 
             for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
                 try {
@@ -172,7 +172,7 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                         HttpEntity entity = response.getEntity();
                         String responseBody = EntityUtils.toString(entity);
 
-                        System.out.println("ES Response Status: " + statusCode);
+                        //System.out.println("ES Response Status: " + statusCode);
 
                         if (statusCode != 200) {
                             System.err.println("Unexpected ES response code: " + statusCode);
@@ -184,7 +184,7 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                         JSONObject hitsObj = responseJson.getJSONObject("hits");
                         JSONArray hits = hitsObj.getJSONArray("hits");
 
-                        System.out.println("Total hits: " + hitsObj.getJSONObject("total").getInt("value"));
+                        //System.out.println("Total hits: " + hitsObj.getJSONObject("total").getInt("value"));
 
                         Set<String> outputValues = new LinkedHashSet<>();
                         for (int j = 0; j < hits.length(); j++) {
@@ -194,13 +194,13 @@ public abstract class DynamicNewField<R extends ConnectRecord<R>> implements Tra
                                 String val = src.optString(esOutputField, "").trim();
                                 if (!val.isEmpty()) {
                                     outputValues.add(val);
-                                    System.out.println("outputValues: " + outputValues);
-                                    System.out.println("Found value: " + val);
+                                    //System.out.println("outputValues: " + outputValues);
+                                    //System.out.println("Found value: " + val);
                                 }
                             }
                         }
 
-                        System.out.println("result : " + outputValues);
+                        //System.out.println("result : " + outputValues);
 
                         // String result = outputValues.isEmpty() ? "empty" : String.join(" | ", outputValues);
                         String result = outputValues.isEmpty() ? "empty" : String.join(" | ", outputValues);
