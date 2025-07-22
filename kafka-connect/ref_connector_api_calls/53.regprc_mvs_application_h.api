@@ -26,7 +26,7 @@ curl \
           "name": '\"$CONN_NAME\"',
           "connection.url": '\"$ES_URL\"',
           "tasks.max": "1",
-          "topics": '\"$ES_INDICES\"',
+          "topics": "$DB_PREFIX_INDEX.regprc.mvs_application_h",
           "key.ignore": "false",
           "schema.ignore": "true",
           "key.converter": "org.apache.kafka.connect.storage.StringConverter",
@@ -45,7 +45,7 @@ curl \
           "behavior.on.malformed.documents": "WARN",
           
 
-          "transforms": "debezExtract,tsconvert01,tsconvert02,tsconvert03,insertSourceTable,tsSelect",
+          "transforms": "debezExtract,tsconvert01,tsconvert02,tsconvert03,insertSourceTable,renameOfficerFields,route,tsSelect",
 
           "transforms.debezExtract.type": "io.debezium.transforms.ExtractNewRecordState",
           "transforms.debezExtract.delete.handling.mode": "drop",
@@ -65,8 +65,15 @@ curl \
           "transforms.tsconvert03.input.type": "micro_sec",
 
           "transforms.insertSourceTable.type": "org.apache.kafka.connect.transforms.InsertField$Value",
-          "transforms.insertSourceTable.static.field": "source_table",
-          "transforms.insertSourceTable.static.value": "mvs_application",
+          "transforms.insertSourceTable.static.field": "source_table_maker",
+          "transforms.insertSourceTable.static.value": "mvs_application_h",
+
+          "transforms.renameOfficerFields.type": "org.apache.kafka.connect.transforms.ReplaceField$Value",
+          "transforms.renameOfficerFields.renames": "verified_officer_role:officer_role,verified_officer_name:officer_name,verified_officer_id:officer_id",
+
+          "transforms.route.type": "org.apache.kafka.connect.transforms.RegexRouter",
+          "transforms.route.regex": ".*",
+          "transforms.route.replacement": "niraqa.regprc.mvs_application_union",
 
           "transforms.tsSelect.type": "io.mosip.kafka.connect.transforms.TimestampSelector$Value",
           "transforms.tsSelect.ts.order": "cr_dtimes,upd_dtimes,source_ts_ms",
