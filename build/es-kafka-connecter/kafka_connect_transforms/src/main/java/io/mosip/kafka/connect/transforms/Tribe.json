@@ -259,6 +259,122 @@
         {
             "code": "66",
             "value": "Vonoma"
+        },
+        {
+            "code": "Acholi (1) ",
+            "value": "Acholi (1)"
+        },
+        {
+            "code": "Baamba (5) ",
+            "value": "Baamba (5)"
+        },
+        {
+            "code": "Babwisi (7) ",
+            "value": "Babwisi (7)"
+        },
+        {
+            "code": "Bafumbira (8) ",
+            "value": "Bafumbira (8)"
+        },
+        {
+            "code": "Baganda (9) ",
+            "value": "Baganda (9)"
+        },
+        {
+            "code": "Bagisu (10) ",
+            "value": "Bagisu (10)"
+        },
+        {
+            "code": "Bagungu (11) ",
+            "value": "Bagungu (11)"
+        },
+        {
+            "code": "Bagwe (12) ",
+            "value": "Bagwe (12)"
+        },
+        {
+            "code": "Bagwere (13) ",
+            "value": "Bagwere (13)"
+        },
+        {
+            "code": "Bahororo (15) ",
+            "value": "Bahororo (15)"
+        },
+        {
+            "code": "Bakiga (17) ",
+            "value": "Bakiga (17)"
+        },
+        {
+            "code": "Bakonzo (18) ",
+            "value": "Bakonzo (18)"
+        },
+        {
+            "code": "Banyankore (21) ",
+            "value": "Banyankore (21)"
+        },
+        {
+            "code": "Banyarwanda (24) ",
+            "value": "Banyarwanda (24)"
+        },
+        {
+            "code": "Banyole (25) ",
+            "value": "Banyole (25)"
+        },
+        {
+            "code": "Banyoro (26) ",
+            "value": "Banyoro (26)"
+        },
+        {
+            "code": "Baruli (27) ",
+            "value": "Baruli (27)"
+        },
+        {
+            "code": "Basamia (29) ",
+            "value": "Basamia (29)"
+        },
+        {
+            "code": "Basoga (30) ",
+            "value": "Basoga (30)"
+        },
+        {
+            "code": "Batoro (33) ",
+            "value": "Batoro (33)"
+        },
+        {
+            "code": "Iteso (41) ",
+            "value": "Iteso (41)"
+        },
+        {
+            "code": "Jonam (43) ",
+            "value": "Jonam (43)"
+        },
+        {
+            "code": "Jopadhola (44) ",
+            "value": "Jopadhola (44)"
+        },
+        {
+            "code": "Kumam (49) ",
+            "value": "Kumam (49)"
+        },
+        {
+            "code": "Langi (50) ",
+            "value": "Langi (50)"
+        },
+        {
+            "code": "Lugbara (52) ",
+            "value": "Lugbara (52)"
+        },
+        {
+            "code": "Madi (53) ",
+            "value": "Madi (53)"
+        },
+        {
+            "code": "Nubi (58) ",
+            "value": "Nubi (58)"
+        },
+        {
+            "code": "Sabiny (62) ",
+            "value": "Sabiny (62)"
         }
     ]
 }

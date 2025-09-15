@@ -539,6 +539,230 @@
         {
             "code": "135",
             "value": "KAZO (131)"
+        },
+        {
+            "code": "APAC (01) ",
+            "value": "APAC (01)"
+        },
+        {
+            "code": "ARUA (02) ",
+            "value": "ARUA (02)"
+        },
+        {
+            "code": "BUDUDA (78) ",
+            "value": "BUDUDA (78)"
+        },
+        {
+            "code": "BULAMBULI (89) ",
+            "value": "BULAMBULI (89)"
+        },
+        {
+            "code": "BUSHENYI (04) ",
+            "value": "BUSHENYI (04)"
+        },
+        {
+            "code": "BUSIA (42) ",
+            "value": "BUSIA (42)"
+        },
+        {
+            "code": "HOIMA (06) ",
+            "value": "HOIMA (06)"
+        },
+        {
+            "code": "IGANGA (07) ",
+            "value": "IGANGA (07)"
+        },
+        {
+            "code": "JINJA (08) ",
+            "value": "JINJA (08)"
+        },
+        {
+            "code": "KAABONG (63) ",
+            "value": "KAABONG (63)"
+        },
+        {
+            "code": "KABAROLE (10) ",
+            "value": "KABAROLE (10)"
+        },
+        {
+            "code": "KABERAMAIDO (54) ",
+            "value": "KABERAMAIDO (54)"
+        },
+        {
+            "code": "KALIRO (64) ",
+            "value": "KALIRO (64)"
+        },
+        {
+            "code": "KAMPALA (12) ",
+            "value": "KAMPALA (12)"
+        },
+        {
+            "code": "KAMULI (13) ",
+            "value": "KAMULI (13)"
+        },
+        {
+            "code": "KAMWENGE (46) ",
+            "value": "KAMWENGE (46)"
+        },
+        {
+            "code": "KANUNGU (55) ",
+            "value": "KANUNGU (55)"
+        },
+        {
+            "code": "KAPCHORWA (14) ",
+            "value": "KAPCHORWA (14)"
+        },
+        {
+            "code": "KASESE (15) ",
+            "value": "KASESE (15)"
+        },
+        {
+            "code": "KATAKWI (43) ",
+            "value": "KATAKWI (43)"
+        },
+        {
+            "code": "KIBAALE (16) ",
+            "value": "KIBAALE (16) "
+        },
+        {
+            "code": "KIBOGA (17) ",
+            "value": "KIBOGA (17)"
+        },
+        {
+            "code": "KIRUHURA (65) ",
+            "value": "KIRUHURA (65)"
+        },
+        {
+            "code": "KISORO (18) ",
+            "value": "KISORO (18)"
+        },
+        {
+            "code": "KWEEN (104) ",
+            "value": "KWEEN (104)"
+        },
+        {
+            "code": "KYANKWANZI (93) ",
+            "value": "KYANKWANZI (93)"
+        },
+        {
+            "code": "LIRA (22) ",
+            "value": "LIRA (22)"
+        },
+        {
+            "code": "LUUKA (94) ",
+            "value": "LUUKA (94)"
+        },
+        {
+            "code": "LUWEERO (23) ",
+            "value": "LUWEERO (23)"
+        },
+        {
+            "code": "LWENGO (105) ",
+            "value": "LWENGO (105)"
+        },
+        {
+            "code": "MANAFWA (67) ",
+            "value": "MANAFWA (67)"
+        },
+        {
+            "code": "MARACHA (77) ",
+            "value": "MARACHA (77)"
+        },
+        {
+            "code": "MASAKA (24) ",
+            "value": "MASAKA (24)"
+        },
+        {
+            "code": "MASINDI (25) ",
+            "value": "MASINDI (25)"
+        },
+        {
+            "code": "MAYUGE (49) ",
+            "value": "MAYUGE (49)"
+        },
+        {
+            "code": "MBALE (26) ",
+            "value": "MBALE (26)"
+        },
+        {
+            "code": "MBARARA (27) ",
+            "value": "MBARARA (27)"
+        },
+        {
+            "code": "MITOOMA (106) ",
+            "value": "MITOOMA (106)"
+        },
+        {
+            "code": "MITYANA (68) ",
+            "value": "MITYANA (68)"
+        },
+        {
+            "code": "MUBENDE (31) ",
+            "value": "MUBENDE (31)"
+        },
+        {
+            "code": "MUKONO (32) ",
+            "value": "MUKONO (32)"
+        },
+        {
+            "code": "NAKASEKE (69) ",
+            "value": "NAKASEKE (69)"
+        },
+        {
+            "code": "NAMISINDWA (120) ",
+            "value": "NAMISINDWA (120)"
+        },
+        {
+            "code": "NTUNGAMO (34) ",
+            "value": "NTUNGAMO (34)"
+        },
+        {
+            "code": "OYAM (76) ",
+            "value": "OYAM (76)"
+        },
+        {
+            "code": "PALLISA (35) ",
+            "value": "PALLISA (35)"
+        },
+        {
+            "code": "RAKAI (36) ",
+            "value": "RAKAI (36)"
+        },
+        {
+            "code": "RUBIRIZI (112) ",
+            "value": "RUBIRIZI (112)"
+        },
+        {
+            "code": "RUKUNGIRI (37) ",
+            "value": "RUKUNGIRI (37)"
+        },
+        {
+            "code": "SERERE (97) ",
+            "value": "SERERE (97)"
+        },
+        {
+            "code": "SHEEMA (101) ",
+            "value": "SHEEMA (101)"
+        },
+        {
+            "code": "SIRONKO (51) ",
+            "value": "SIRONKO (51)"
+        },
+        {
+            "code": "SOROTI (38) ",
+            "value": "SOROTI (38)"
+        },
+        {
+            "code": "SSEMBABULE (45) ",
+            "value": "SSEMBABULE (45)"
+        },
+        {
+            "code": "TORORO (39) ",
+            "value": "TORORO (39)"
+        },
+        {
+            "code": "WAKISO (52) ",
+            "value": "WAKISO (52)"
         }
     ]
 }
