@@ -19,6 +19,10 @@
         {
             "code": "CUAN",
             "value": "Citizenship under the Article 9"
+        },
+        {
+            "code": "By Birth /Descent ",
+            "value": "By Birth /Descent"
         }
     ]
 }
