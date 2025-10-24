@@ -23,6 +23,14 @@
         {
             "code": "By Birth /Descent ",
             "value": "By Birth /Descent"
+        },
+        {
+            "code": "Birth (Indigenous Community) ",
+            "value": "Citizenship under the Article 9"
+        },
+        {
+            "code": "Birth (Presumption) ",
+            "value": "By Birth /Descent"
         }
     ]
 }

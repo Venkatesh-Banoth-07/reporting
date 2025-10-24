@@ -36,6 +36,17 @@ curl \
 
           "behavior.on.null.values": "DELETE",
 
+          "errors.tolerance": "all",
+          "errors.log.enable": "true",
+          "drop.tombstones": "false",
+          "errors.log.include.messages": "true",
+          "behavior.on.version.conflict": "ignore",
+          "errors.deadletterqueue.topic.name": '\"dlq-$ES_INDICES\"',
+          "producer.metrics.recording.level": "INFO",
+          "errors.deadletterqueue.context.headers.enable": "true",
+          "behavior.on.malformed.documents": "IGNORE",
+          "use.event.time.ordering": "true",
+
           "transforms": "debezExtract,tsconvert01,tsconvert02,tsconvert03,tsconvert04,tsSelect",
 
           "transforms.debezExtract.type": "io.debezium.transforms.ExtractNewRecordState",
