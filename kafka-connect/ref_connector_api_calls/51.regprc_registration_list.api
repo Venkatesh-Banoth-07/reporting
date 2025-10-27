@@ -47,7 +47,7 @@ curl \
           "behavior.on.malformed.documents": "IGNORE",
           "use.event.time.ordering": "true",
 
-          "transforms": "debezExtract,tsconvert01,tsconvert02,tsconvert03,tsconvert04,refSplit,enrichFromM,enrichFromZ,tsSelect",
+          "transforms": "debezExtract,tsconvert01,tsconvert02,tsconvert03,tsconvert04,refSplit,enrichFromM,enrichFromZ,enrichFromD,tsSelect",
 
           "transforms.debezExtract.type": "io.debezium.transforms.ExtractNewRecordState",
           "transforms.debezExtract.delete.handling.mode": "drop",
@@ -91,6 +91,15 @@ curl \
           "transforms.enrichFromZ.es.input.fields": "code",
           "transforms.enrichFromZ.es.output.field": "name",
           "transforms.enrichFromZ.output.field": "zone_name",
+
+          "transforms.enrichFromD.type": "io.mosip.kafka.connect.transforms.DynamicNewField$Value",
+          "transforms.enrichFromD.es.index": '\"$DB_PREFIX_INDEX.master.registration_center\"',
+          "transforms.enrichFromD.es.url": '\"$ES_URL\"',
+          "transforms.enrichFromD.input.fields": "regcntr_id",
+          "transforms.enrichFromD.input.default.values": "regcntr_id",
+          "transforms.enrichFromD.es.input.fields": "id",
+          "transforms.enrichFromD.es.output.field": "name",
+          "transforms.enrichFromD.output.field": "district_name",
 
           "transforms.tsSelect.type": "io.mosip.kafka.connect.transforms.TimestampSelector$Value",
           "transforms.tsSelect.ts.order": "cr_dtimes,upd_dtimes,source_ts_ms",
