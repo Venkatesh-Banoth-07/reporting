@@ -46,7 +46,7 @@ curl \
           "behavior.on.malformed.documents": "WARN",
           
 
-          "transforms": "debezExtract,tsconvert01,tsconvert02,tsconvert03,insertSourceTable,renameOfficerFields,route,tsSelect",
+          "transforms": "debezExtract,tsconvert01,tsconvert02,tsconvert03,insertSourceTable,renameOfficerFields,tsSelect",
 
           "transforms.debezExtract.type": "io.debezium.transforms.ExtractNewRecordState",
           "transforms.debezExtract.delete.handling.mode": "drop",
@@ -71,10 +71,6 @@ curl \
 
           "transforms.renameOfficerFields.type": "org.apache.kafka.connect.transforms.ReplaceField$Value",
           "transforms.renameOfficerFields.renames": "assigned_officer_role:officer_role,assigned_officer_name:officer_name,assigned_officer_id:officer_id",
-
-          "transforms.route.type": "org.apache.kafka.connect.transforms.RegexRouter",
-          "transforms.route.regex": ".*",
-          "transforms.route.replacement": '\"$ES_INDICES\"',
 
           "transforms.tsSelect.type": "io.mosip.kafka.connect.transforms.TimestampSelector$Value",
           "transforms.tsSelect.ts.order": "cr_dtimes,upd_dtimes,source_ts_ms",

@@ -48,6 +48,18 @@ curl \
           "behavior.on.malformed.documents": "IGNORE",
           "use.event.time.ordering": "true",
 
+          "connection.compression": "true",
+          "batch.size": "100",
+          "linger.ms": "1000",
+          "flush.timeout.ms": "10000",
+          "max.buffered.records": "1000",
+          "max.in.flight.requests": "5",
+          "retry.backoff.ms": "100",
+          "max.retries": "10",
+		  "connection.timeout.ms": "30000",
+		  "read.timeout.ms": "30000",
+		  "behavior.on.error": "log",
+
 
           "transforms": "debezExtract,tsconvert01,tsconvert02,tsconvert03,tsconvert04,tsconvert05,tsconvert06,tsconvert07,tsSelect",
 
